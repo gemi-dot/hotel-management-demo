@@ -1,0 +1,71 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">
+        {% if guest %}Edit Guest{% else %}Add New Guest{% endif %}
+    </h2>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" name="name" id="name" 
+                               class="form-control"
+                               placeholder="Enter guest name"
+                               value="{% if guest %}{{ guest.name }}{% endif %}" required>
+                        <div class="invalid-feedback">Please provide a name.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" name="email" id="email" 
+                               class="form-control"
+                               placeholder="Enter guest email"
+                               value="{% if guest %}{{ guest.email }}{% endif %}" required>
+                        <div class="invalid-feedback">Please provide a valid email address.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="text" name="phone" id="phone" 
+                               class="form-control"
+                               placeholder="Enter phone number"
+                               value="{% if guest %}{{ guest.phone }}{% endif %}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea name="address" id="address" class="form-control" rows="2"
+                                  placeholder="Enter guest address">{% if guest %}{{ guest.address }}{% endif %}</textarea>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="date_of_birth" class="form-label">Date of Birth</label>
+                        <input type="date" name="date_of_birth" id="date_of_birth" 
+                               class="form-control"
+                               value="{% if guest and guest.date_of_birth %}{{ guest.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="2"
+                                  placeholder="Additional notes about the guest">{% if guest %}{{ guest.notes }}{% endif %}</textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        {% if guest %}Update Guest{% else %}Save Guest{% endif %}
+                    </button>
+                    <a href="{% url 'guest_list' %}" class="btn btn-secondary">Cancel</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-dark">Back to Dashboard</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

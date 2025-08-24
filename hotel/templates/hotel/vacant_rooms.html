@@ -1,0 +1,49 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>🛏️ Vacant Rooms</h2>
+
+    <!-- Date Filter Form -->
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-4">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start_date" class="form-control form-control-sm"
+                   value="{{ start_date }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control form-control-sm"
+                   value="{{ end_date }}">
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-success btn-sm">Filter</button>
+        </div>
+    </form>
+
+    <!-- Room Grid -->
+    <div class="row">
+        {% for room in rooms %}
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Room {{ room.number }}</h5>
+                        <p class="card-text">Type: {{ room.room_type }}</p>
+                        <p class="card-text">Capacity: {{ room.capacity }}</p>
+                        <p class="card-text">Price: Php {{ room.price }}</p>
+                        
+                       
+                        <a href="{% url 'booking_create' %}?room={{ room.id }}" class="btn btn-primary">Create Booking</a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No vacant rooms found for the selected dates.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm mt-3">← Back to Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'hotel/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load peso_filters %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">🏨 Dashboard</h1>
+
+    <!-- Stats Cards -->
+    <div class="row text-center mb-4">
+        {% for card in stats %}
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-{{ card.bg|default:'primary' }} shadow-sm">
+                <div class="card-body">
+                    <strong>{{ card.title }}</strong>
+                    <h4 class="mt-2">
+                        {% if card.title|lower == 'revenue' %}
+                            ₱{{ card.count|floatformat:2|intcomma }}
+                        {% else %}
+                            {{ card.count }}
+                        {% endif %}
+                    </h4>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No statistics available.</p>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Actions -->
+    <h4 class="mb-3">🚀 Quick Actions</h4>
+    <div class="row g-2 mb-4">
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'guest_list' %}" class="btn btn-outline-primary w-100">👤 Manage Guests</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'room_list' %}" class="btn btn-outline-primary w-100">🛏 Manage Rooms</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_list' %}" class="btn btn-outline-secondary w-100">📋 View Bookings</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_create' %}" class="btn btn-outline-success w-100">➕ New Booking</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'vacant_rooms' %}" class="btn btn-outline-info w-100">✅ Vacant Rooms</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_history' %}" class="btn btn-outline-warning w-100">📜 Booking History</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_summary' %}" class="btn btn-outline-dark w-100">📊 Summary Report</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'occupancy_report' %}" class="btn btn-outline-dark w-100">📈 Occupancy Report</a></div>
+        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'revenue_report' %}" class="btn btn-outline-dark w-100">💰 Revenue Report</a></div>
+    </div>
+
+    <!-- Filters -->
+    <h4 class="mb-3">📅 Recent Bookings</h4>
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+            <label for="start-date" class="form-label">From</label>
+            <input type="date" name="start_date" id="start-date" class="form-control form-control-sm" value="{{ request.GET.start_date }}">
+        </div>
+        <div class="col-md-3">
+            <label for="end-date" class="form-label">To</label>
+            <input type="date" name="end_date" id="end-date" class="form-control form-control-sm" value="{{ request.GET.end_date }}">
+        </div>
+        <div class="col-md-3">
+            <label for="room" class="form-label">Room</label>
+            <select name="room" id="room" class="form-select form-select-sm">
+                <option value="">All Rooms</option>
+                {% for room in rooms %}
+                    <option value="{{ room.id }}" {% if request.GET.room == room.id|stringformat:"s" %}selected{% endif %}>{{ room.number }} - {{ room.get_room_type_display }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="customer" class="form-label">Customer</label>
+            <input type="text" name="customer" id="customer" class="form-control form-control-sm" value="{{ request.GET.customer }}">
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-sm btn-primary mt-4 w-100">🔍 Filter</button>
+        </div>
+    </form>
+
+    <!-- Total Amount from Recent Bookings -->
+    <div class="mb-3">
+        <h5>Total Amount (Recent Bookings): {{ total_amount_recent|peso }}</h5>
+    </div>
+
+    <!-- Booking List -->
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Check-In</th>
+                    <th>Check-Out</th>
+                    <th>Room</th>
+                    <th>Customer</th>
+                    <th>Booking Status</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in recent_bookings %}
+                <tr>
+                    <td>{{ booking.check_in|date:"M d, Y" }}</td>
+                    <td>{{ booking.check_out|date:"M d, Y" }}</td>
+                    <td>{{ booking.room.number }} - {{ booking.room.get_room_type_display }}</td>
+                    <td>{{ booking.guest.name }}</td>
+                    <td>
+                        {% if booking.status == "Checked Out" %}
+                            <span class="badge bg-secondary">Checked Out</span>
+                        {% elif booking.status == "Checked In" %}
+                            <span class="badge bg-success">Checked In</span>
+                        {% elif booking.status == "Pending" %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif booking.status == "No Show" %}
+                            <span class="badge bg-danger">No Show</span>
+                        {% else %}
+                            <span class="badge bg-info text-dark">Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td>₱{{ booking.total_price|floatformat:2 }}</td>
+                    <td>
+                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-primary">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

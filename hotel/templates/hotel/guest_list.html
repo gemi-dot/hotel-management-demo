@@ -1,0 +1,41 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Guest List</h2>
+    <a href="{% url 'guest_create' %}" class="btn btn-primary mb-3">Add Guest</a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-dark mb-3">Back to Dashboard</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Address</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for guest in guests %}
+            <tr>
+                <td>{{ guest.name }}</td>
+                <td>{{ guest.email }}</td>
+                <td>{{ guest.phone|default:"Not provided" }}</td>
+                <td>{{ guest.address|default:"Not provided" }}</td>
+                <td>
+                    <a href="{% url 'guest_edit' guest.id %}" class="btn btn-sm btn-warning">Edit</a>
+                    <form method="post" action="{% url 'guest_delete' guest.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this guest?');">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center">No guests found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

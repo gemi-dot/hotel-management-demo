@@ -1,0 +1,73 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">
+        {% if booking %}Update Booking{% else %}Create New Booking{% endif %}
+    </h2>
+
+    <form method="post" class="needs-validation" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+
+            <!-- Guest -->
+            <div class="col-md-6">
+                <label for="guest" class="form-label">Guest</label>
+                <select name="guest" id="guest" class="form-select" required>
+                    <option value="">Select Guest</option>
+                    {% for guest in guests %}
+                        <option value="{{ guest.id }}"
+                                {% if booking and booking.guest.id == guest.id %}selected{% endif %}>
+                            {{ guest.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="invalid-feedback">Please select a guest.</div>
+            </div>
+
+            <!-- Room -->
+            <div class="col-md-6">
+                <label for="room" class="form-label">Room</label>
+                <select name="room" id="room" class="form-select" required>
+                    <option value="">Select Room</option>
+                    {% for room in rooms %}
+                        <option value="{{ room.id }}"
+                                {% if booking and booking.room.id == room.id %}selected{% endif %}>
+                            {{ room.number }} - {{ room.get_room_type_display }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="invalid-feedback">Please select a room.</div>
+            </div>
+
+            <!-- Check-In -->
+            <div class="col-md-6">
+                <label for="check_in" class="form-label">Check-In</label>
+                <input type="date" name="check_in" id="check_in"
+                       class="form-control"
+                       value="{% if booking %}{{ booking.check_in|date:'Y-m-d' }}{% endif %}"
+                       required>
+                <div class="invalid-feedback">Please provide a check-in date.</div>
+            </div>
+
+            <!-- Check-Out -->
+            <div class="col-md-6">
+                <label for="check_out" class="form-label">Check-Out</label>
+                <input type="date" name="check_out" id="check_out"
+                       class="form-control"
+                       value="{% if booking %}{{ booking.check_out|date:'Y-m-d' }}{% endif %}"
+                       required>
+                <div class="invalid-feedback">Please provide a check-out date.</div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">
+                {% if booking %}Update Booking{% else %}Save Booking{% endif %}
+            </button>
+            <a href="{% url 'booking_list' %}" class="btn btn-outline-dark">Back to List</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

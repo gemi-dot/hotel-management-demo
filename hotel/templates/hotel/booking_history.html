@@ -1,0 +1,98 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📜 Booking History</h2>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label class="form-label">From</label>
+            <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">To</label>
+            <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Room</label>
+            <select name="room_id" class="form-select form-select-sm">
+                <option value="">All Rooms</option>
+                {% for room in rooms %}
+                    <option value="{{ room.id }}" {% if selected_room == room.id %}selected{% endif %}>
+                        {{ room.number }} - {{ room.get_room_type_display }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+        </div>
+    </form>
+
+    {% if page_obj.object_list %}
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr>
+                <th>Customer</th>
+                <th>Contact</th>
+                <th>Room</th>
+                <th>Check-In</th>
+                <th>Check-Out</th>
+                <th>Total Price</th>
+                <th>Payment Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in page_obj %}
+            <tr>
+                <td>{{ booking.guest.name }}</td>
+                <td>{{ booking.guest.phone|default:"Not provided" }}</td>
+                <td>{{ booking.room.number }} - {{ booking.room.get_room_type_display }}</td>
+                <td>{{ booking.check_in|date:"M d, Y" }}</td>
+                <td>{{ booking.check_out|date:"M d, Y" }}</td>
+                <td>₱{{ booking.total_price|floatformat:2 }}</td>
+                <td>
+                    {% if booking.payment_status == 'paid' %}
+                        <span class="badge bg-success">Paid</span>
+                    {% elif booking.payment_status == 'partial' %}
+                        <span class="badge bg-warning text-dark">Partial</span>
+                    {% else %}
+                        <span class="badge bg-danger">Pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination Controls -->
+    <nav>
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if start_date %}start_date={{ start_date }}&{% endif %}{% if end_date %}end_date={{ end_date }}&{% endif %}{% if selected_room %}room_id={{ selected_room }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if start_date %}start_date={{ start_date }}&{% endif %}{% if end_date %}end_date={{ end_date }}&{% endif %}{% if selected_room %}room_id={{ selected_room }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% else %}
+        <div class="alert alert-info mt-4">No bookings found.</div>
+    {% endif %}
+
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm mt-3">← Back to Dashboard</a>
+</div>
+{% endblock %}

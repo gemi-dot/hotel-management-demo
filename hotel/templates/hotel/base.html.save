@@ -1,0 +1,61 @@
+
+
+{% extends 'hotel/base.html' %}
+
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Dashboard Overview</h2>
+  
+  <div class="row">
+    <!-- Dashboard Stats -->
+    <div class="col-md-3">
+      <div class="card text-white bg-primary mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Total Rooms</h5>
+          <p class="card-text">{{ total_rooms }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-success mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Available Rooms</h5>
+          <p class="card-text">{{ available_rooms }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-warning mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Total Bookings</h5>
+          <p class="card-text">{{ total_bookings }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-info mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Checked-In</h5>
+          <p class="card-text">{{ checked_in }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div class="row mt-4">
+    <div class="col-md-4">
+      <a href="{% url 'room_list' %}" class="btn btn-outline-primary btn-block">Manage Rooms</a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'booking_list' %}" class="btn btn-outline-success btn-block">Manage Bookings</a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'available_rooms' %}" class="btn btn-outline-info btn-block">View Available Rooms</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

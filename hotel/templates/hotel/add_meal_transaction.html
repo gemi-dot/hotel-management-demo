@@ -1,0 +1,15 @@
+{% extends "hotel/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Add Meal Transaction</h2>
+    <p><strong>Booking:</strong> {{ booking.guest.name }} (Room {{ booking.room.number }})</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Add Meal</button>
+        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

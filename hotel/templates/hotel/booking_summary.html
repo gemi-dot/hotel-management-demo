@@ -1,0 +1,77 @@
+
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Booking Summary Report</h2>
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date }}">
+        </div>
+        <div class="col-md-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date }}">
+        </div>
+        <div class="col-md-3">
+            <label for="room" class="form-label">Room</label>
+            <select name="room" id="room" class="form-select">
+                <option value="">All Rooms</option>
+                {% for room in rooms %}
+                    <option value="{{ room.id }}" {% if room_id == room.id|stringformat:"s" %}selected{% endif %}>
+                        {{ room.number }} - {{ room.get_room_type_display }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="status" class="form-label">Status</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">All Statuses</option>
+                <option value="checked_in" {% if status == 'checked_in' %}selected{% endif %}>Checked In</option>
+                <option value="not_checked_in" {% if status == 'not_checked_in' %}selected{% endif %}>Not Checked In</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary mt-4 w-100">Filter</button>
+        </div>
+    </form>
+
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-dark mb-3">Back to Dashboard</a>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Room</th>
+                <th>Type</th>
+                <th>Customer</th>
+                <th>Check-In</th>
+                <th>Check-Out</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in bookings %}
+            <tr>
+                <td>{{ booking.room.number }}</td>
+                <td>{{ booking.room.get_room_type_display }}</td>
+                <td>{{ booking.guest.name }}</td>
+                <td>{{ booking.check_in|date:"M d, Y" }}</td>
+                <td>{{ booking.check_out|date:"M d, Y" }}</td>
+                <td>
+                    {% if booking.is_checked_in %}
+                        <span class="badge bg-success">Checked In</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Not Checked In</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center">No bookings found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📊 Occupancy Report</h2>
+
+    <form method="get" class="row g-2 mt-3 mb-4">
+        <div class="col-md-4">
+            <label class="form-label">From</label>
+            <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">To</label>
+            <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary btn-sm">Generate Report</button>
+        </div>
+    </form>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Results</h5>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">Total Rooms: <strong>{{ total_rooms }}</strong></li>
+                <li class="list-group-item">Date Range: <strong>{{ start_date }} to {{ end_date }}</strong></li>
+                <li class="list-group-item">Available Room Nights: <strong>{{ available_nights }}</strong></li>
+                <li class="list-group-item">Occupied Room Nights: <strong>{{ occupied_nights }}</strong></li>
+                <li class="list-group-item">Occupancy Rate: <strong>{{ occupancy_rate }}%</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">← Back to Dashboard</a>
+</div>
+{% endblock %}
