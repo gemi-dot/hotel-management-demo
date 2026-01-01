@@ -33,8 +33,8 @@ class BookingAdmin(admin.ModelAdmin):
     guest_name.short_description = 'Guest'
 
     def total_paid_display(self, obj):
-        # Assumes you have a method total_paid() in Booking model
-        return f'{obj.total_paid():.2f}' if hasattr(obj, 'total_paid') else '0.00'
+        # total_paid is a property, not a method
+        return f'{obj.total_paid:.2f}' if hasattr(obj, 'total_paid') else '0.00'
     total_paid_display.short_description = 'Total Paid'
 
     def balance_due_display(self, obj):

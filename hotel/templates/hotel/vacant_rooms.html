@@ -1,4 +1,4 @@
-{% extends 'hotel/base.html' %}
+{% extends "hotel/base.html" %}
 
 {% block content %}
 <div class="container mt-4">
@@ -28,11 +28,9 @@
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <h5 class="card-title">Room {{ room.number }}</h5>
-                        <p class="card-text">Type: {{ room.room_type }}</p>
+                        <p class="card-text">Type: {{ room.get_room_type_display }}</p>
                         <p class="card-text">Capacity: {{ room.capacity }}</p>
-                        <p class="card-text">Price: Php {{ room.price }}</p>
-                        
-                       
+                        <p class="card-text">Price: ₱{{ room.price|floatformat:2 }}</p>
                         <a href="{% url 'booking_create' %}?room={{ room.id }}" class="btn btn-primary">Create Booking</a>
                     </div>
                 </div>

@@ -5,6 +5,33 @@
 <div class="container mt-4">
     <h2 class="mb-4">Booking List</h2>
 
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" name="start_date" id="start_date" class="form-control"
+                   value="{{ start_date }}">
+        </div>
+        <div class="col-md-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" name="end_date" id="end_date" class="form-control"
+                   value="{{ end_date }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+      
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">← Back to Dashboard</a>
+        </div>
+
+    </form>
+    
+    <div class="mb-3">
+        <a href="{% url 'export_booking_list_csv' %}" class="btn btn-info">Export to CSV</a>
+        <a href="{% url 'export_booking_list_excel' %}" class="btn btn-success">Export to Excel</a>
+    </div>
+    
     <div class="table-responsive">
         <table class="table table-hover table-bordered align-middle">
             <thead class="table-light">
@@ -16,6 +43,7 @@
                     <th>Status</th>
                     <th>Payment</th>
                     <th>Actions</th>
+                    <th>CheckOut</th>
                 </tr>
             </thead>
             <tbody>
@@ -28,22 +56,25 @@
                     <td>{{ booking.room.number }} - {{ booking.room.get_room_type_display }}</td>
 
                     <!-- Check-in and Check-out Dates -->
-                    <td>{{ booking.check_in|date:"M d, Y, h:i A" }}</td>
-                    <td>{{ booking.check_out|date:"M d, Y, h:i A" }}</td>
+                    <td>{{ booking.check_in|date:"M d, Y" }}</td>
+                    <td>{{ booking.check_out|date:"M d, Y" }}</td>
+                    
+                
 
                     <!-- Booking Status -->
                     <td>
-                        {% if booking.status == "Checked Out" %}
-                            <span class="badge bg-secondary">Checked Out</span>
+                        {% if booking.status == "Overdue (Needs Checkout)" %}
+                            <span class="badge bg-danger">Overdue (Needs Checkout)</span>
                         {% elif booking.status == "Checked In" %}
-                            <span class="badge bg-success">Checked In</span>
+                            <span class="badge bg-primary">Checked In</span>
+                        {% elif booking.status == "Checked Out" %}
+                            <span class="badge bg-success">Checked Out</span>
                         {% elif booking.status == "No Show" %}
-                            <span class="badge bg-danger">No Show</span>
-                        {% elif booking.status == "Pending" %}
-                            <span class="badge bg-warning text-dark">Pending</span>
+                            <span class="badge bg-warning text-dark">No Show</span>
                         {% else %}
-                            <span class="badge bg-info text-dark">Upcoming</span>
+                            <span class="badge bg-secondary">{{ booking.status }}</span>
                         {% endif %}
+
                     </td>
 
                     <!-- Payment Status -->
@@ -55,24 +86,39 @@
                         {% elif booking.payment_status == "overdue" %}
                             <span class="badge bg-danger">Overdue</span>
                         {% else %}
-                            <span class="badge bg-danger">Pending</span>
+                            <span class="badge bg-secondary">Pending</span>
                         {% endif %}
                     </td>
+
 
                     <!-- Actions -->
                     <td>
                         <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-primary">View</a>
-                        <a href="{% url 'mark_as_checked_out' booking.id %}" class="btn btn-sm btn-secondary"
-                           onclick="return confirm('Are you sure you want to mark this booking as Checked Out?');">
-                           Mark as Checked Out
+                        
                         </a>
                     </td>
+                    <td>
+                        {% if booking.status == "Checked In" %}
+                            <a href="{% url 'booking_checkout' booking.id %}" class="btn btn-sm btn-primary">
+                                Check Out
+                            </a>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    
+
+
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">← Back to Dashboard</a>
+    </div>
+    
     <!-- Pagination -->
     <nav aria-label="Page navigation">
         <ul class="pagination justify-content-center">

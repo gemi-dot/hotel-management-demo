@@ -1,0 +1,34 @@
+{% extends 'hotel/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Reserve Room {{ room.number }} ({{ room.get_room_type_display }})</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="guest" class="form-label">Guest</label>
+            <select name="guest" id="guest" class="form-select" required>
+                <option value="">-- Select Guest --</option>
+                {% for guest in guests %}
+                    <option value="{{ guest.id }}">{{ guest.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="check_in" class="form-label">Check-In</label>
+            <input type="date" name="check_in" id="check_in" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="check_out" class="form-label">Check-Out</label>
+            <input type="date" name="check_out" id="check_out" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Reserve</button>
+        <a href="{% url 'booking_summary' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

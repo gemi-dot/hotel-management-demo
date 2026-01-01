@@ -1,36 +1,62 @@
-{% extends 'hotel/base.html' %}
+{% extends "hotel/base.html" %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>📊 Occupancy Report</h2>
+    <h2>🏨 Room Occupancy Report</h2>
+    <!-- Add Dashboard Button -->
+    <div class="mb-3">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
 
-    <form method="get" class="row g-2 mt-3 mb-4">
-        <div class="col-md-4">
-            <label class="form-label">From</label>
-            <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+    <form method="get" class="mb-4 row g-3">
+        <div class="col-auto">
+            <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
         </div>
-        <div class="col-md-4">
-            <label class="form-label">To</label>
-            <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+        <div class="col-auto">
+            <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary btn-sm">Generate Report</button>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
         </div>
     </form>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Results</h5>
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item">Total Rooms: <strong>{{ total_rooms }}</strong></li>
-                <li class="list-group-item">Date Range: <strong>{{ start_date }} to {{ end_date }}</strong></li>
-                <li class="list-group-item">Available Room Nights: <strong>{{ available_nights }}</strong></li>
-                <li class="list-group-item">Occupied Room Nights: <strong>{{ occupied_nights }}</strong></li>
-                <li class="list-group-item">Occupancy Rate: <strong>{{ occupancy_rate }}%</strong></li>
-            </ul>
-        </div>
-    </div>
-
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">← Back to Dashboard</a>
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Room Number</th>
+                <th>Room Type</th>
+                <th>Capacity</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Booking Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in room_occupancy %}
+                <tr>
+                    <td>{{ entry.room.number }}</td>
+                    <td>{{ entry.room.room_type }}</td>
+                    <td>{{ entry.room.capacity }}</td>
+                    <td>₱{{ entry.room.price }}</td>
+                    <td>
+                        {% if entry.status == "Occupied" %}
+                            <span class="badge bg-danger">{{ entry.status }}</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ entry.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.status == "Occupied" and entry.booking %}
+                            Guest: {{ entry.booking.guest.name }}<br>
+                            Check-in: {{ entry.booking.check_in|date:"M d, Y" }}<br>
+                            Check-out: {{ entry.booking.check_out|date:"M d, Y" }}
+                        {% else %}
+                            — No active booking —
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

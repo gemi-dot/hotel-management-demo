@@ -2,6 +2,12 @@ from django.db import models
 from django.utils import timezone
 from datetime import date
 from django.utils.timezone import now
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.db.models import Sum
 
 
 class Guest(models.Model):
@@ -43,8 +49,6 @@ class Booking(models.Model):
 
     guest = models.ForeignKey("Guest", on_delete=models.CASCADE, related_name="bookings")
     room = models.ForeignKey("Room", on_delete=models.CASCADE, related_name="bookings")
-
-    #check_in = models.DateTimeField(auto_now_add=True)
     
     STATUS_CHOICES = [
         ("Pending", "Pending"),
@@ -53,10 +57,6 @@ class Booking(models.Model):
         ("No Show", "No Show"),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
-
-
-
-
     check_in = models.DateTimeField()
     check_out = models.DateTimeField()
     total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -67,6 +67,7 @@ class Booking(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     is_checked_in = models.BooleanField(default=False)  # Actual check-in flag
+    checked_out_at = models.DateTimeField(blank=True, null=True)  # Timestamp for check-out
 
     def __str__(self):
         return f"{self.guest.name} - Room {self.room.number}"
@@ -76,50 +77,107 @@ class Booking(models.Model):
         """Calculate total price based on room rate and number of days."""
         num_days = (self.check_out - self.check_in).days
         return self.room.price * num_days
+    
+
+    @property
+    def room_total(self):
+        """Always recompute from dates (room only)."""
+        return self.compute_total_price()
+
+    @property
+    def meal_total(self):
+        """Sum of all meals linked to this booking."""
+        return self.meal_transactions.aggregate(total=Sum("total_price"))["total"] or 0
+
+    @property
+    def grand_total(self):
+        """Room + Meals combined."""
+        return (self.total_price or 0) + self.meal_total
+    
+    @property
+    def total_paid(self):
+        """Sum of all payments linked to booking."""
+        return self.payments.aggregate(total=Sum("amount"))["total"] or 0
+    
+    def clean(self):
+        """Ensure no overlapping bookings for the same room, respecting early checkouts."""
+        overlapping_bookings = Booking.objects.filter(
+            room=self.room,
+            check_in__lt=self.check_out,
+            check_out__gt=self.check_in,
+        ).exclude(id=self.id).exclude(status="Checked Out")  # Ignore bookings already checked out
+
+        if overlapping_bookings.exists():
+            raise ValidationError(f"Room {self.room.number} is already booked for the selected dates.")
+
+
+
 
     def save(self, *args, **kwargs):
-        """Ensure total price is computed before saving."""
+        
+
         if not self.total_price:
             self.total_price = self.compute_total_price()
+
+        # Mark room as unavailable when booking is created
+        if self.status in ["Pending", "Checked In"]:
+      
+            self.room.is_available = False
+            self.room.save(update_fields=["is_available"])
+
         super().save(*args, **kwargs)
 
-    # --- Payment Helpers ---
-    def total_paid(self):
-        """Total amount paid for this booking."""
-        return sum(payment.amount for payment in self.payments.all())
+    
 
     def is_fully_paid(self):
         """Check if booking is fully paid."""
-        return self.total_paid() >= (self.total_price or 0)
-
-
+        return self.total_paid >= (self.total_price or 0)
 
 
     def update_payment_status(self, manual_override=False):
-        today = now().date()  # Ensure today is a date object
+        today = now().date()
 
-        # Example comparison with proper type conversion
-        if self.check_out.date() < today:  # Convert datetime to date
-            self.payment_status = "overdue"
-        elif self.total_paid() >= self.total_price:
+        if self.total_paid >= self.grand_total:
             self.payment_status = "paid"
-        elif self.total_paid() > 0:
+        elif self.check_out.date() < today:
+            if self.total_paid > 0:
+                self.payment_status = "partial"
+            else:
+                self.payment_status = "overdue"
+        elif self.total_paid > 0:
             self.payment_status = "partial"
         else:
             self.payment_status = "pending"
 
-        if manual_override:
+        if not manual_override:
             self.save(update_fields=["payment_status"])
 
 
+    def booking_checkout(request, booking_id):
+        booking = get_object_or_404(Booking, id=booking_id)
+
+        # Mark booking as checked out
+        booking.status = "Checked Out"
+        booking.save(update_fields=["status"])
+
+        # Update payment status too (in case final payment happened at checkout)
+        booking.update_payment_status()
+
+        messages.success(request, f"Booking {booking.id} has been checked out.")
+        return redirect("booking_list")
+
     @property
     def status_display(self):
+        """Compute display status consistently."""
+        current_time = now()
         if self.is_checked_in:
             return "Checked In"
-        elif self.check_out < timezone.now().date():
+        elif self.check_out < current_time:
             return "Checked Out"
-        elif self.check_in > timezone.now().date():
+        elif self.check_in > current_time:
             return "Upcoming"
+        elif self.status == "No Show":
+            return "No Show"
         else:
             return "Pending"
 
@@ -139,11 +197,14 @@ class Payment(models.Model):
         """Validate payment amount before saving."""
         if self.amount <= 0:
             raise ValueError("Payment amount must be greater than zero.")
-        if self.booking.total_paid() + self.amount > self.booking.total_price:
+        
+        if self.booking.total_paid + self.amount > self.booking.grand_total:
             raise ValueError("Payment exceeds the total price for the booking.")
+        
         super().save(*args, **kwargs)
 
-
+    # ✅ always keep payment_status in sync after payment
+        self.booking.update_payment_status()
 
 class MealTransaction(models.Model):
     CATEGORY_CHOICES = [

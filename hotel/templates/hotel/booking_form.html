@@ -10,7 +10,7 @@
         {% csrf_token %}
         <div class="row g-3">
 
-            <!-- Guest -->
+            <!-- Guest Selection -->
             <div class="col-md-6">
                 <label for="guest" class="form-label">Guest</label>
                 <select name="guest" id="guest" class="form-select" required>
@@ -25,7 +25,7 @@
                 <div class="invalid-feedback">Please select a guest.</div>
             </div>
 
-            <!-- Room -->
+            <!-- Room Selection -->
             <div class="col-md-6">
                 <label for="room" class="form-label">Room</label>
                 <select name="room" id="room" class="form-select" required>
@@ -42,32 +42,53 @@
 
             <!-- Check-In -->
             <div class="col-md-6">
-                <label for="check_in" class="form-label">Check-In</label>
+                <label for="check_in" class="form-label">Check-In Date</label>
                 <input type="date" name="check_in" id="check_in"
                        class="form-control"
-                       value="{% if booking %}{{ booking.check_in|date:'Y-m-d' }}{% endif %}"
+                       value="{% if booking %}{{ booking.check_in|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
                        required>
+                <small class="text-muted">Check-in time will be set to 2:00 PM automatically.</small>
                 <div class="invalid-feedback">Please provide a check-in date.</div>
             </div>
 
             <!-- Check-Out -->
             <div class="col-md-6">
-                <label for="check_out" class="form-label">Check-Out</label>
+                <label for="check_out" class="form-label">Check-Out Date</label>
                 <input type="date" name="check_out" id="check_out"
                        class="form-control"
-                       value="{% if booking %}{{ booking.check_out|date:'Y-m-d' }}{% endif %}"
+                       value="{% if booking %}{{ booking.check_out|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
                        required>
+                <small class="text-muted">Check-out time will be set to 12:00 PM automatically.</small>
                 <div class="invalid-feedback">Please provide a check-out date.</div>
             </div>
+
         </div>
 
-        <!-- Actions -->
+        <!-- Form Actions -->
         <div class="mt-4">
             <button type="submit" class="btn btn-primary">
                 {% if booking %}Update Booking{% else %}Save Booking{% endif %}
             </button>
-            <a href="{% url 'booking_list' %}" class="btn btn-outline-dark">Back to List</a>
+            <a href="{% url 'booking_list' %}" class="btn btn-outline-dark">Back to Booking List</a>
         </div>
     </form>
 </div>
+
+<script>
+    // Bootstrap form validation
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
+
 {% endblock %}

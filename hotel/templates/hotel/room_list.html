@@ -42,6 +42,9 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
+                            <a href="{% url 'reserve_room' room.id %}" class="btn btn-sm btn-primary me-1">
+                                <i class="bi bi-calendar-plus"></i> Reserve
+                            </a>
                             <a href="{% url 'room_edit' room.id %}" class="btn btn-sm btn-warning me-1">
                                 <i class="bi bi-pencil"></i> Edit
                             </a>

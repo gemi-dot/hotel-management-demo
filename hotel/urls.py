@@ -17,6 +17,12 @@ urlpatterns = [
     path('rooms/available/', views.available_rooms, name='available_rooms'),
     path('rooms/vacant/', views.vacant_rooms, name='vacant_rooms'),
 
+    path("vacant-rooms/", views.vacant_rooms, name="vacant_rooms"),
+
+
+
+    path("reserve/<int:room_id>/", views.reserve_room, name="reserve_room"),
+
     # =======================
     # 🔹 Guests
     # =======================
@@ -34,6 +40,8 @@ urlpatterns = [
     path('bookings/<int:booking_id>/edit/', views.booking_edit, name='booking_edit'),
     path('bookings/<int:pk>/delete/', views.booking_delete, name='booking_delete'),
     path('bookings/<int:pk>/toggle-checkin/', views.toggle_check_in, name='toggle_check_in'),
+
+    path('bookings/<int:pk>/toggle-checkout/', views.toggle_check_out, name='toggle_check_out'),
     path('bookings/<int:booking_id>/mark-paid/', views.mark_as_paid, name='mark_as_paid'),
     path('bookings/history/', views.booking_history, name='booking_history'),
     path('bookings/summary/', views.booking_summary, name='booking_summary'),
@@ -42,6 +50,9 @@ urlpatterns = [
     path('bookings/<int:booking_id>/add-meal/', views.add_meal_transaction, name='add_meal_transaction'),
     path('bookings/<int:booking_id>/meal/<int:meal_id>/edit/', views.edit_meal_transaction, name='edit_meal_transaction'),
     path('bookings/<int:booking_id>/meal/<int:meal_id>/delete/', views.delete_meal_transaction, name='delete_meal_transaction'),
+    
+    path("bookings/<int:booking_id>/checkout/", views.booking_checkout, name="booking_checkout"),
+
 
     # =======================
     # 🔹 Payments
@@ -60,4 +71,8 @@ urlpatterns = [
     # =======================
     path('reports/occupancy/', views.occupancy_report, name='occupancy_report'),
     path('reports/revenue/', views.revenue_report, name='revenue_report'),
+
+    path('export/bookings/csv/', views.export_booking_list_csv, name='export_booking_list_csv'),
+    path('export/bookings/excel/', views.export_booking_list_excel, name='export_booking_list_excel'),
+
 ]

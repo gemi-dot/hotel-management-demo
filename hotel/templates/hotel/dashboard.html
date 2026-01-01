@@ -4,121 +4,465 @@
 {% load peso_filters %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">🏨 Dashboard</h1>
+<style>
+    .dashboard-container {
+        display: flex;
+        min-height: 100vh;
+        margin: -20px; /* Offset base container padding */
+    }
+    
+    .sidebar {
+        width: 280px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        position: fixed;
+        height: 100vh;
+        overflow-y: auto;
+        z-index: 1000;
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        background: rgba(0,0,0,0.1);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sidebar-header h4 {
+        margin: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .main-content {
+        flex: 1;
+        margin-left: 280px;
+        padding: 20px;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+    
+    .quick-actions {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0;
+    }
+    
+    .quick-actions li {
+        margin: 0;
+    }
+    
+    .quick-actions .action-category {
+        padding: 15px 20px 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        opacity: 0.8;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-top: 10px;
+    }
+    
+    .quick-actions .action-category:first-child {
+        margin-top: 0;
+    }
+    
+    .quick-actions a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border-left: 3px solid transparent;
+    }
+    
+    .quick-actions a:hover {
+        background: rgba(255,255,255,0.1);
+        border-left: 3px solid #ffc107;
+        color: #ffc107;
+        transform: translateX(5px);
+    }
+    
+    .quick-actions a i {
+        font-size: 1.2rem;
+        width: 20px;
+        text-align: center;
+    }
+    
+    .action-badge {
+        margin-left: auto;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.2);
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #007bff;
+        transition: transform 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .metric-card.success { border-left-color: #28a745; }
+    .metric-card.warning { border-left-color: #ffc107; }
+    .metric-card.danger { border-left-color: #dc3545; }
+    .metric-card.info { border-left-color: #17a2b8; }
+    .metric-card.dark { border-left-color: #343a40; }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 10px 0 5px;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    
+    .metric-icon {
+        float: right;
+        font-size: 2rem;
+        opacity: 0.3;
+        margin-top: -10px;
+    }
+    
+    .dashboard-header {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .recent-bookings-card {
+        background: white;
+        border-radius: 10px;
+        padding: 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .recent-bookings-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar.show {
+            transform: translateX(0);
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .mobile-toggle {
+            display: block !important;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    }
+    
+    .mobile-toggle {
+        display: none;
+    }
+</style>
 
-    <!-- Stats Cards -->
-    <div class="row text-center mb-4">
-        {% for card in stats %}
-        <div class="col-md-3 mb-3">
-            <div class="card text-white bg-{{ card.bg|default:'primary' }} shadow-sm">
-                <div class="card-body">
-                    <strong>{{ card.title }}</strong>
-                    <h4 class="mt-2">
-                        {% if card.title|lower == 'revenue' %}
-                            ₱{{ card.count|floatformat:2|intcomma }}
-                        {% else %}
-                            {{ card.count }}
-                        {% endif %}
-                    </h4>
+<div class="dashboard-container">
+    <!-- Mobile Toggle Button -->
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+    
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h4>
+                <i class="bi bi-building"></i>
+                Hotel Dashboard
+            </h4>
+        </div>
+        
+        <ul class="quick-actions">
+            <!-- Booking Management -->
+            <li class="action-category">📋 Booking Management</li>
+            <li>
+                <a href="{% url 'booking_create' %}">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>New Booking</span>
+                    <span class="action-badge">Create</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'booking_list' %}">
+                    <i class="bi bi-list-task"></i>
+                    <span>Manage Bookings</span>
+                    <span class="action-badge">View</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'booking_summary' %}">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span>Booking Summary</span>
+                    <span class="action-badge">Report</span>
+                </a>
+            </li>
+            
+            <!-- Room Management -->
+            <li class="action-category">🏠 Room Management</li>
+            <li>
+                <a href="{% url 'room_list' %}">
+                    <i class="bi bi-house-door"></i>
+                    <span>Manage Rooms</span>
+                    <span class="action-badge">Edit</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'vacant_rooms' %}">
+                    <i class="bi bi-house-check"></i>
+                    <span>Vacant Rooms</span>
+                    <span class="action-badge">Info</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'room_create' %}">
+                    <i class="bi bi-plus-square"></i>
+                    <span>Add New Room</span>
+                    <span class="action-badge">Create</span>
+                </a>
+            </li>
+            
+            <!-- Guest Management -->
+            <li class="action-category">👥 Guest Management</li>
+            <li>
+                <a href="{% url 'guest_list' %}">
+                    <i class="bi bi-people"></i>
+                    <span>Manage Guests</span>
+                    <span class="action-badge">View</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'guest_create' %}">
+                    <i class="bi bi-person-plus"></i>
+                    <span>Add Guest</span>
+                    <span class="action-badge">Create</span>
+                </a>
+            </li>
+            
+            <!-- Reports & Analytics -->
+            <li class="action-category">📊 Reports & Analytics</li>
+            <li>
+                <a href="{% url 'occupancy_report' %}">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Occupancy Report</span>
+                    <span class="action-badge">Analytics</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'revenue_report' %}">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Revenue Report</span>
+                    <span class="action-badge">Financial</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'booking_history' %}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Booking History</span>
+                    <span class="action-badge">Archive</span>
+                </a>
+            </li>
+            
+            <!-- Export Options -->
+            <li class="action-category">📤 Export Data</li>
+            <li>
+                <a href="{% url 'export_booking_list_csv' %}">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Export to CSV</span>
+                    <span class="action-badge">CSV</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'export_booking_list_excel' %}">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    <span>Export to Excel</span>
+                    <span class="action-badge">Excel</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h2 class="mb-0">
+                <i class="bi bi-speedometer2"></i>
+                Hotel Management Dashboard
+                <small class="text-muted">| Real-time Overview</small>
+            </h2>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="metric-card">
+                    <i class="bi bi-calendar-check metric-icon"></i>
+                    <div class="metric-value text-primary">{{ total_bookings }}</div>
+                    <p class="metric-label">Total Bookings</p>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="metric-card success">
+                    <i class="bi bi-cash-stack metric-icon"></i>
+                    <div class="metric-value text-success">{{ payments_today }}</div>
+                    <p class="metric-label">Payments Today</p>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="metric-card info">
+                    <i class="bi bi-pie-chart metric-icon"></i>
+                    <div class="metric-value text-info">{{ occupancy_rate }}%</div>
+                    <p class="metric-label">Occupancy Rate</p>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="metric-card warning">
+                    <i class="bi bi-cup-hot metric-icon"></i>
+                    <div class="metric-value text-warning">{{ meals_ordered }}</div>
+                    <p class="metric-label">Meals Ordered</p>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="metric-card dark">
+                    <i class="bi bi-currency-dollar metric-icon"></i>
+                    <div class="metric-value text-dark">₱{{ total_revenue|intcomma }}</div>
+                    <p class="metric-label">Total Revenue</p>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="metric-card danger">
+                    <i class="bi bi-exclamation-triangle metric-icon"></i>
+                    <div class="metric-value text-danger">₱{{ outstanding_balance|intcomma }}</div>
+                    <p class="metric-label">Outstanding Balance</p>
                 </div>
             </div>
         </div>
-        {% empty %}
-        <p class="text-muted">No statistics available.</p>
-        {% endfor %}
-    </div>
 
-    <!-- Quick Actions -->
-    <h4 class="mb-3">🚀 Quick Actions</h4>
-    <div class="row g-2 mb-4">
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'guest_list' %}" class="btn btn-outline-primary w-100">👤 Manage Guests</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'room_list' %}" class="btn btn-outline-primary w-100">🛏 Manage Rooms</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_list' %}" class="btn btn-outline-secondary w-100">📋 View Bookings</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_create' %}" class="btn btn-outline-success w-100">➕ New Booking</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'vacant_rooms' %}" class="btn btn-outline-info w-100">✅ Vacant Rooms</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_history' %}" class="btn btn-outline-warning w-100">📜 Booking History</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'booking_summary' %}" class="btn btn-outline-dark w-100">📊 Summary Report</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'occupancy_report' %}" class="btn btn-outline-dark w-100">📈 Occupancy Report</a></div>
-        <div class="col-lg-3 col-md-4 col-sm-6"><a href="{% url 'revenue_report' %}" class="btn btn-outline-dark w-100">💰 Revenue Report</a></div>
-    </div>
-
-    <!-- Filters -->
-    <h4 class="mb-3">📅 Recent Bookings</h4>
-    <form method="get" class="row g-2 mb-3">
-        <div class="col-md-3">
-            <label for="start-date" class="form-label">From</label>
-            <input type="date" name="start_date" id="start-date" class="form-control form-control-sm" value="{{ request.GET.start_date }}">
+        <!-- Recent Bookings -->
+        <div class="recent-bookings-card">
+            <div class="recent-bookings-header">
+                <i class="bi bi-clock-history"></i>
+                Recent Bookings
+                <span class="badge bg-light text-dark ms-2">Last 5</span>
+            </div>
+            <div class="p-3">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Guest</th>
+                                <th>Room</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in recent_bookings %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ booking.guest.name }}</strong><br>
+                                        <small class="text-muted">{{ booking.guest.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ booking.room.number }}</span>
+                                        {{ booking.room.room_type|title }}
+                                    </td>
+                                    <td>{{ booking.check_in|date:"M d, Y" }}</td>
+                                    <td>{{ booking.check_out|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if booking.status == "Pending" %}
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        {% elif booking.status == "Checked In" %}
+                                            <span class="badge bg-success">Checked In</span>
+                                        {% elif booking.status == "Checked Out" %}
+                                            <span class="badge bg-secondary">Checked Out</span>
+                                        {% elif booking.status == "No Show" %}
+                                            <span class="badge bg-danger">No Show</span>
+                                        {% else %}
+                                            <span class="badge bg-info">Reserved</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox"></i><br>
+                                        No recent bookings found
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="col-md-3">
-            <label for="end-date" class="form-label">To</label>
-            <input type="date" name="end_date" id="end-date" class="form-control form-control-sm" value="{{ request.GET.end_date }}">
-        </div>
-        <div class="col-md-3">
-            <label for="room" class="form-label">Room</label>
-            <select name="room" id="room" class="form-select form-select-sm">
-                <option value="">All Rooms</option>
-                {% for room in rooms %}
-                    <option value="{{ room.id }}" {% if request.GET.room == room.id|stringformat:"s" %}selected{% endif %}>{{ room.number }} - {{ room.get_room_type_display }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label for="customer" class="form-label">Customer</label>
-            <input type="text" name="customer" id="customer" class="form-control form-control-sm" value="{{ request.GET.customer }}">
-        </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-sm btn-primary mt-4 w-100">🔍 Filter</button>
-        </div>
-    </form>
-
-    <!-- Total Amount from Recent Bookings -->
-    <div class="mb-3">
-        <h5>Total Amount (Recent Bookings): {{ total_amount_recent|peso }}</h5>
-    </div>
-
-    <!-- Booking List -->
-    <div class="table-responsive">
-        <table class="table table-hover table-bordered align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Check-In</th>
-                    <th>Check-Out</th>
-                    <th>Room</th>
-                    <th>Customer</th>
-                    <th>Booking Status</th>
-                    <th>Amount</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for booking in recent_bookings %}
-                <tr>
-                    <td>{{ booking.check_in|date:"M d, Y" }}</td>
-                    <td>{{ booking.check_out|date:"M d, Y" }}</td>
-                    <td>{{ booking.room.number }} - {{ booking.room.get_room_type_display }}</td>
-                    <td>{{ booking.guest.name }}</td>
-                    <td>
-                        {% if booking.status == "Checked Out" %}
-                            <span class="badge bg-secondary">Checked Out</span>
-                        {% elif booking.status == "Checked In" %}
-                            <span class="badge bg-success">Checked In</span>
-                        {% elif booking.status == "Pending" %}
-                            <span class="badge bg-warning text-dark">Pending</span>
-                        {% elif booking.status == "No Show" %}
-                            <span class="badge bg-danger">No Show</span>
-                        {% else %}
-                            <span class="badge bg-info text-dark">Unknown</span>
-                        {% endif %}
-                    </td>
-                    <td>₱{{ booking.total_price|floatformat:2 }}</td>
-                    <td>
-                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-primary">View</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
 </div>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('show');
+}
+
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.querySelector('.mobile-toggle');
+    
+    if (window.innerWidth <= 768 && 
+        !sidebar.contains(event.target) && 
+        !toggleBtn.contains(event.target)) {
+        sidebar.classList.remove('show');
+    }
+});
+</script>
 {% endblock %}
+

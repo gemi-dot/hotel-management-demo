@@ -1,77 +1,89 @@
 
 {% extends 'hotel/base.html' %}
+{% load custom_filters %}
+
+
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Booking Summary Report</h2>
-    <form method="get" class="row g-3 mb-4">
-        <div class="col-md-3">
-            <label for="start_date" class="form-label">Start Date</label>
-            <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date }}">
-        </div>
-        <div class="col-md-3">
-            <label for="end_date" class="form-label">End Date</label>
-            <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date }}">
-        </div>
-        <div class="col-md-3">
-            <label for="room" class="form-label">Room</label>
-            <select name="room" id="room" class="form-select">
-                <option value="">All Rooms</option>
-                {% for room in rooms %}
-                    <option value="{{ room.id }}" {% if room_id == room.id|stringformat:"s" %}selected{% endif %}>
-                        {{ room.number }} - {{ room.get_room_type_display }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label for="status" class="form-label">Status</label>
-            <select name="status" id="status" class="form-select">
-                <option value="">All Statuses</option>
-                <option value="checked_in" {% if status == 'checked_in' %}selected{% endif %}>Checked In</option>
-                <option value="not_checked_in" {% if status == 'not_checked_in' %}selected{% endif %}>Not Checked In</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary mt-4 w-100">Filter</button>
-        </div>
-    </form>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">📋 Booking Summary</h2>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-dark">
+            <i class="bi bi-house-door"></i> Dashboard
+        </a>
+    </div>
 
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-dark mb-3">Back to Dashboard</a>
+
 
     <table class="table table-striped">
         <thead>
             <tr>
+                <th>Guest</th>
                 <th>Room</th>
-                <th>Type</th>
-                <th>Customer</th>
-                <th>Check-In</th>
-                <th>Check-Out</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
                 <th>Status</th>
+                <th>Next Available</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for booking in bookings %}
-            <tr>
-                <td>{{ booking.room.number }}</td>
-                <td>{{ booking.room.get_room_type_display }}</td>
-                <td>{{ booking.guest.name }}</td>
-                <td>{{ booking.check_in|date:"M d, Y" }}</td>
-                <td>{{ booking.check_out|date:"M d, Y" }}</td>
-                <td>
-                    {% if booking.is_checked_in %}
-                        <span class="badge bg-success">Checked In</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Not Checked In</span>
-                    {% endif %}
-                </td>
-            </tr>
+            {% for booking in page_obj %}
+                <tr>
+                    <td>{{ booking.guest.name }}</td>
+                    <td>{{ booking.room.number }} - {{ booking.room.room_type }}</td>
+                    <td>{{ booking.check_in|date:"M d, Y" }}</td>
+                    <td>{{ booking.check_out|date:"M d, Y" }}</td>
+                    <td>
+                        <span class="badge 
+                            {% if booking.display_status == 'Checked In' %} bg-success
+                            {% elif booking.display_status == 'Checked Out' %} bg-dark
+                            {% elif booking.display_status == 'Reserved' %} bg-info
+                            {% elif booking.display_status == 'No Show' %} bg-danger
+                            {% else %} bg-secondary {% endif %}">
+                            {{ booking.display_status }}
+                        </span>
+                    </td>
+                    <td>
+                        {{ next_available_map|get_item:booking.room.id|date:"M d, Y"|default:"-" }}
+                    </td>
+                    <td>
+                        <a href="{% url 'reserve_room' booking.room.id %}" class="btn btn-sm btn-success">
+                            Reserve
+                        </a>
+                    </td>
+                </tr>
             {% empty %}
-            <tr>
-                <td colspan="6" class="text-center">No bookings found.</td>
-            </tr>
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No bookings found.</td>
+                </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Pagination Controls -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
 </div>
 {% endblock %}
