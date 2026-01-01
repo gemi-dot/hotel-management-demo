@@ -1,94 +1,584 @@
 {% extends 'hotel/base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">
-        {% if booking %}Update Booking{% else %}Create New Booking{% endif %}
-    </h2>
+<style>
+    .booking-create-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .page-header h2 {
+        margin: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .form-container {
+        background: white;
+        border-radius: 15px;
+        padding: 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 20px 25px;
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .form-body {
+        padding: 30px;
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+    }
+    
+    .section-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.1rem;
+        border-bottom: 2px solid #f1f3f4;
+        padding-bottom: 10px;
+    }
+    
+    .form-group-modern {
+        margin-bottom: 25px;
+    }
+    
+    .form-label-modern {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-control-modern {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 12px 15px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    
+    .form-control-modern:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: white;
+    }
+    
+    .form-select-modern {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 12px 15px;
+        font-size: 1rem;
+        background: #fafafa;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .form-select-modern:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: white;
+    }
+    
+    .form-help-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .date-info-card {
+        background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 10px;
+        border: 1px solid #fdcb6e;
+    }
+    
+    .date-info-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .date-info-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .btn-group-modern {
+        display: flex;
+        gap: 15px;
+        padding: 20px 0 0;
+        border-top: 1px solid #f1f3f4;
+        margin-top: 20px;
+    }
+    
+    .btn-modern {
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        font-size: 1rem;
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-cancel {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .guest-preview, .room-preview {
+        background: #f8f9fa;
+        border: 1px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 10px;
+        display: none;
+    }
+    
+    .preview-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .preview-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .preview-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .preview-value {
+        font-weight: 600;
+        color: #212529;
+    }
+    
+    .duration-calculator {
+        background: linear-gradient(135deg, #a8e6cf 0%, #dcedc8 100%);
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 15px;
+        text-align: center;
+        font-weight: 600;
+        display: none;
+    }
+    
+    .duration-calculator.show {
+        display: block;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .invalid-feedback {
+        display: block;
+        color: #dc3545;
+        font-size: 0.875em;
+        margin-top: 5px;
+    }
+    
+    .form-control-modern:invalid,
+    .form-select-modern:invalid {
+        border-color: #dc3545;
+    }
+    
+    .form-control-modern:valid,
+    .form-select-modern:valid {
+        border-color: #28a745;
+    }
+    
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 20px;
+        }
+        
+        .form-body {
+            padding: 20px;
+        }
+        
+        .btn-group-modern {
+            flex-direction: column;
+        }
+        
+        .btn-modern {
+            justify-content: center;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+        }
+    }
+</style>
 
-    <form method="post" class="needs-validation" novalidate>
-        {% csrf_token %}
-        <div class="row g-3">
-
-            <!-- Guest Selection -->
-            <div class="col-md-6">
-                <label for="guest" class="form-label">Guest</label>
-                <select name="guest" id="guest" class="form-select" required>
-                    <option value="">Select Guest</option>
-                    {% for guest in guests %}
-                        <option value="{{ guest.id }}"
-                                {% if booking and booking.guest.id == guest.id %}selected{% endif %}>
-                            {{ guest.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-                <div class="invalid-feedback">Please select a guest.</div>
-            </div>
-
-            <!-- Room Selection -->
-            <div class="col-md-6">
-                <label for="room" class="form-label">Room</label>
-                <select name="room" id="room" class="form-select" required>
-                    <option value="">Select Room</option>
-                    {% for room in rooms %}
-                        <option value="{{ room.id }}"
-                                {% if booking and booking.room.id == room.id %}selected{% endif %}>
-                            {{ room.number }} - {{ room.get_room_type_display }}
-                        </option>
-                    {% endfor %}
-                </select>
-                <div class="invalid-feedback">Please select a room.</div>
-            </div>
-
-            <!-- Check-In -->
-            <div class="col-md-6">
-                <label for="check_in" class="form-label">Check-In Date</label>
-                <input type="date" name="check_in" id="check_in"
-                       class="form-control"
-                       value="{% if booking %}{{ booking.check_in|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
-                       required>
-                <small class="text-muted">Check-in time will be set to 2:00 PM automatically.</small>
-                <div class="invalid-feedback">Please provide a check-in date.</div>
-            </div>
-
-            <!-- Check-Out -->
-            <div class="col-md-6">
-                <label for="check_out" class="form-label">Check-Out Date</label>
-                <input type="date" name="check_out" id="check_out"
-                       class="form-control"
-                       value="{% if booking %}{{ booking.check_out|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
-                       required>
-                <small class="text-muted">Check-out time will be set to 12:00 PM automatically.</small>
-                <div class="invalid-feedback">Please provide a check-out date.</div>
-            </div>
-
+<div class="booking-create-container">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h2>
+                <i class="bi bi-calendar-plus"></i>
+                {% if booking %}Update Booking{% else %}Create New Booking{% endif %}
+            </h2>
+            <p class="mb-0 mt-2 opacity-75">
+                <i class="bi bi-info-circle"></i>
+                {% if booking %}Modify existing booking details{% else %}Register a new guest reservation{% endif %}
+            </p>
         </div>
 
-        <!-- Form Actions -->
-        <div class="mt-4">
-            <button type="submit" class="btn btn-primary">
-                {% if booking %}Update Booking{% else %}Save Booking{% endif %}
-            </button>
-            <a href="{% url 'booking_list' %}" class="btn btn-outline-dark">Back to Booking List</a>
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="form-header">
+                <i class="bi bi-clipboard-plus"></i>
+                Booking Information
+            </div>
+            <div class="form-body">
+                <form method="post" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Guest & Room Selection Section -->
+                    <div class="form-section">
+                        <div class="section-title">
+                            <i class="bi bi-people"></i>
+                            Guest & Room Selection
+                        </div>
+                        
+                        <div class="row g-4">
+                            <!-- Guest Selection -->
+                            <div class="col-md-6">
+                                <div class="form-group-modern">
+                                    <label class="form-label-modern" for="guest">
+                                        <i class="bi bi-person"></i>
+                                        Guest
+                                    </label>
+                                    <select name="guest" id="guest" class="form-select form-select-modern" required>
+                                        <option value="">-- Select Guest --</option>
+                                        {% for guest in guests %}
+                                            <option value="{{ guest.id }}"
+                                                    data-email="{{ guest.email|default:'Not provided' }}"
+                                                    data-phone="{{ guest.phone|default:'Not provided' }}"
+                                                    {% if booking and booking.guest.id == guest.id %}selected{% endif %}>
+                                                {{ guest.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-help-text">
+                                        <i class="bi bi-info-circle"></i>
+                                        Choose the guest who will be staying in the room
+                                    </div>
+                                    <div class="invalid-feedback">Please select a guest.</div>
+                                    
+                                    <!-- Guest Preview -->
+                                    <div id="guestPreview" class="guest-preview">
+                                        <div class="preview-item">
+                                            <span class="preview-label">Email:</span>
+                                            <span class="preview-value" id="guestEmail"></span>
+                                        </div>
+                                        <div class="preview-item">
+                                            <span class="preview-label">Phone:</span>
+                                            <span class="preview-value" id="guestPhone"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Room Selection -->
+                            <div class="col-md-6">
+                                <div class="form-group-modern">
+                                    <label class="form-label-modern" for="room">
+                                        <i class="bi bi-house-door"></i>
+                                        Room
+                                    </label>
+                                    <select name="room" id="room" class="form-select form-select-modern" required>
+                                        <option value="">-- Select Room --</option>
+                                        {% for room in rooms %}
+                                            <option value="{{ room.id }}"
+                                                    data-type="{{ room.get_room_type_display }}"
+                                                    data-capacity="{{ room.capacity }}"
+                                                    data-price="{{ room.price }}"
+                                                    {% if booking and booking.room.id == room.id %}selected{% endif %}>
+                                                Room {{ room.number }} - {{ room.get_room_type_display }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-help-text">
+                                        <i class="bi bi-info-circle"></i>
+                                        Select an available room for the guest
+                                    </div>
+                                    <div class="invalid-feedback">Please select a room.</div>
+                                    
+                                    <!-- Room Preview -->
+                                    <div id="roomPreview" class="room-preview">
+                                        <div class="preview-item">
+                                            <span class="preview-label">Type:</span>
+                                            <span class="preview-value" id="roomType"></span>
+                                        </div>
+                                        <div class="preview-item">
+                                            <span class="preview-label">Capacity:</span>
+                                            <span class="preview-value" id="roomCapacity"></span>
+                                        </div>
+                                        <div class="preview-item">
+                                            <span class="preview-label">Rate per Night:</span>
+                                            <span class="preview-value" id="roomPrice"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Selection Section -->
+                    <div class="form-section">
+                        <div class="section-title">
+                            <i class="bi bi-calendar-range"></i>
+                            Reservation Dates
+                        </div>
+                        
+                        <div class="row g-4">
+                            <!-- Check-In Date -->
+                            <div class="col-md-6">
+                                <div class="form-group-modern">
+                                    <label class="form-label-modern" for="check_in">
+                                        <i class="bi bi-calendar-plus"></i>
+                                        Check-In Date
+                                    </label>
+                                    <input type="date" 
+                                           name="check_in" 
+                                           id="check_in"
+                                           class="form-control form-control-modern"
+                                           value="{% if booking %}{{ booking.check_in|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                                           required>
+                                    <div class="form-help-text">
+                                        <i class="bi bi-clock"></i>
+                                        Check-in time will be set to 2:00 PM automatically
+                                    </div>
+                                    <div class="invalid-feedback">Please provide a check-in date.</div>
+                                </div>
+                            </div>
+
+                            <!-- Check-Out Date -->
+                            <div class="col-md-6">
+                                <div class="form-group-modern">
+                                    <label class="form-label-modern" for="check_out">
+                                        <i class="bi bi-calendar-minus"></i>
+                                        Check-Out Date
+                                    </label>
+                                    <input type="date" 
+                                           name="check_out" 
+                                           id="check_out"
+                                           class="form-control form-control-modern"
+                                           value="{% if booking %}{{ booking.check_out|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                                           required>
+                                    <div class="form-help-text">
+                                        <i class="bi bi-clock"></i>
+                                        Check-out time will be set to 12:00 PM automatically
+                                    </div>
+                                    <div class="invalid-feedback">Please provide a check-out date.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date Information Card -->
+                        <div class="date-info-card">
+                            <div class="date-info-item">
+                                <i class="bi bi-clock"></i>
+                                <strong>Check-in:</strong> Selected date at 2:00 PM
+                            </div>
+                            <div class="date-info-item">
+                                <i class="bi bi-clock"></i>
+                                <strong>Check-out:</strong> Selected date at 12:00 PM
+                            </div>
+                        </div>
+
+                        <!-- Duration Calculator -->
+                        <div id="durationCalculator" class="duration-calculator">
+                            <i class="bi bi-calculator"></i>
+                            <span id="stayDuration">Stay Duration: 0 nights</span>
+                            <span id="estimatedCost" style="display: block; margin-top: 5px;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="btn-group-modern">
+                        <button type="submit" class="btn-modern btn-save">
+                            <i class="bi bi-check-circle"></i>
+                            {% if booking %}Update Booking{% else %}Save Booking{% endif %}
+                        </button>
+                        <a href="{% url 'booking_list' %}" class="btn-modern btn-cancel">
+                            <i class="bi bi-arrow-left"></i>
+                            Back to Booking List
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
-    </form>
+    </div>
 </div>
 
 <script>
-    // Bootstrap form validation
-    (function () {
-        'use strict'
-        var forms = document.querySelectorAll('.needs-validation')
-        Array.prototype.slice.call(forms).forEach(function (form) {
-            form.addEventListener('submit', function (event) {
-                if (!form.checkValidity()) {
-                    event.preventDefault()
-                    event.stopPropagation()
+document.addEventListener('DOMContentLoaded', function() {
+    // Form elements
+    const guestSelect = document.getElementById('guest');
+    const roomSelect = document.getElementById('room');
+    const checkInInput = document.getElementById('check_in');
+    const checkOutInput = document.getElementById('check_out');
+    const guestPreview = document.getElementById('guestPreview');
+    const roomPreview = document.getElementById('roomPreview');
+    const durationCalculator = document.getElementById('durationCalculator');
+    
+    // Guest selection preview
+    guestSelect.addEventListener('change', function() {
+        if (this.value) {
+            const option = this.selectedOptions[0];
+            document.getElementById('guestEmail').textContent = option.getAttribute('data-email');
+            document.getElementById('guestPhone').textContent = option.getAttribute('data-phone');
+            guestPreview.style.display = 'block';
+        } else {
+            guestPreview.style.display = 'none';
+        }
+    });
+    
+    // Room selection preview
+    roomSelect.addEventListener('change', function() {
+        if (this.value) {
+            const option = this.selectedOptions[0];
+            document.getElementById('roomType').textContent = option.getAttribute('data-type');
+            document.getElementById('roomCapacity').textContent = option.getAttribute('data-capacity') + ' guests';
+            document.getElementById('roomPrice').textContent = '₱' + parseFloat(option.getAttribute('data-price')).toFixed(2);
+            roomPreview.style.display = 'block';
+            calculateStayDuration();
+        } else {
+            roomPreview.style.display = 'none';
+            durationCalculator.classList.remove('show');
+        }
+    });
+    
+    // Duration calculator
+    function calculateStayDuration() {
+        const checkIn = new Date(checkInInput.value);
+        const checkOut = new Date(checkOutInput.value);
+        const roomPrice = roomSelect.selectedOptions[0]?.getAttribute('data-price');
+        
+        if (checkInInput.value && checkOutInput.value && roomPrice) {
+            const timeDiff = checkOut.getTime() - checkIn.getTime();
+            const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+            
+            if (dayDiff > 0) {
+                const totalCost = dayDiff * parseFloat(roomPrice);
+                document.getElementById('stayDuration').textContent = `Stay Duration: ${dayDiff} night${dayDiff !== 1 ? 's' : ''}`;
+                document.getElementById('estimatedCost').textContent = `Estimated Cost: ₱${totalCost.toFixed(2)}`;
+                durationCalculator.classList.add('show');
+            } else {
+                durationCalculator.classList.remove('show');
+            }
+        }
+    }
+    
+    checkInInput.addEventListener('change', calculateStayDuration);
+    checkOutInput.addEventListener('change', calculateStayDuration);
+    
+    // Initialize previews if editing existing booking
+    if (guestSelect.value) {
+        guestSelect.dispatchEvent(new Event('change'));
+    }
+    if (roomSelect.value) {
+        roomSelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Auto-focus first field
+    guestSelect.focus();
+    
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Focus on first invalid field
+                const firstInvalid = form.querySelector(':invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus();
                 }
-                form.classList.add('was-validated')
-            }, false)
-        })
-    })()
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+    
+    // Date validation
+    checkInInput.addEventListener('change', function() {
+        const today = new Date().toISOString().split('T')[0];
+        if (this.value < today) {
+            this.setCustomValidity('Check-in date cannot be in the past');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    checkOutInput.addEventListener('change', function() {
+        if (checkInInput.value && this.value <= checkInInput.value) {
+            this.setCustomValidity('Check-out date must be after check-in date');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+});
 </script>
-
 {% endblock %}

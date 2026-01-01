@@ -1,13 +1,456 @@
 {% extends "hotel/base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">Edit Meal Transaction</h2>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-secondary">Cancel</a>
-    </form>
+<style>
+    .meal-edit-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        color: #333;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .page-header h2 {
+        margin: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .booking-info {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #e9ecef;
+    }
+    
+    .booking-info h6 {
+        color: #495057;
+        margin-bottom: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .booking-details {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .booking-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #6c757d;
+    }
+    
+    .booking-detail-value {
+        font-weight: 600;
+        color: #212529;
+    }
+    
+    .form-container {
+        background: white;
+        border-radius: 15px;
+        padding: 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+        color: white;
+        padding: 20px 25px;
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .form-body {
+        padding: 30px;
+    }
+    
+    .form-group-modern {
+        margin-bottom: 25px;
+    }
+    
+    .form-label-modern {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-control-modern {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 12px 15px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    
+    .form-control-modern:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: white;
+    }
+    
+    .form-select-modern {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 12px 15px;
+        font-size: 1rem;
+        background: #fafafa;
+        transition: all 0.3s ease;
+    }
+    
+    .form-select-modern:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: white;
+    }
+    
+    .input-group-modern {
+        position: relative;
+    }
+    
+    .currency-symbol {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        font-weight: 600;
+        z-index: 10;
+    }
+    
+    .form-control-currency {
+        padding-left: 35px;
+    }
+    
+    .btn-group-modern {
+        display: flex;
+        gap: 15px;
+        padding: 20px 0 0;
+        border-top: 1px solid #f1f3f4;
+        margin-top: 20px;
+    }
+    
+    .btn-modern {
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-cancel {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .form-help-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .category-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-top: 5px;
+    }
+    
+    .badge-breakfast { background: #fff3cd; color: #856404; }
+    .badge-lunch { background: #d4edda; color: #155724; }
+    .badge-dinner { background: #f8d7da; color: #721c24; }
+    .badge-snacks { background: #d1ecf1; color: #0c5460; }
+    
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 20px;
+        }
+        
+        .form-body {
+            padding: 20px;
+        }
+        
+        .btn-group-modern {
+            flex-direction: column;
+        }
+        
+        .btn-modern {
+            justify-content: center;
+        }
+        
+        .booking-details {
+            flex-direction: column;
+            gap: 10px;
+        }
+    }
+</style>
+
+<div class="meal-edit-container">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h2>
+                <i class="bi bi-pencil-square"></i>
+                Edit Meal Transaction
+            </h2>
+            <p class="mb-0 mt-2 opacity-75">
+                <i class="bi bi-clock"></i>
+                Modify meal details and pricing
+            </p>
+        </div>
+
+        <!-- Booking Information -->
+        <div class="booking-info">
+            <h6>
+                <i class="bi bi-info-circle"></i>
+                Booking Information
+            </h6>
+            <div class="booking-details">
+                <div class="booking-detail-item">
+                    <i class="bi bi-person"></i>
+                    <span>Guest:</span>
+                    <span class="booking-detail-value">{{ booking.guest.name }}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Room:</span>
+                    <span class="booking-detail-value">{{ booking.room.number }}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <i class="bi bi-house"></i>
+                    <span>Type:</span>
+                    <span class="booking-detail-value">{{ booking.room.get_room_type_display }}</span>
+                </div>
+                <div class="booking-detail-item">
+                    <i class="bi bi-calendar"></i>
+                    <span>Stay:</span>
+                    <span class="booking-detail-value">
+                        {{ booking.check_in|date:"M d" }} - {{ booking.check_out|date:"M d, Y" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="form-header">
+                <i class="bi bi-cup-hot"></i>
+                Meal Transaction Details
+            </div>
+            <div class="form-body">
+                <form method="post" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Meal Name -->
+                    <div class="form-group-modern">
+                        <label class="form-label-modern" for="id_meal_name">
+                            <i class="bi bi-cup-hot"></i>
+                            Meal Name
+                        </label>
+                        <input type="text" 
+                               name="meal_name" 
+                               id="id_meal_name"
+                               class="form-control form-control-modern"
+                               placeholder="Enter meal name (e.g., Chicken Adobo, Beef Steak)"
+                               value="{{ form.meal_name.value|default:'' }}"
+                               required>
+                        <div class="form-help-text">
+                            <i class="bi bi-info-circle"></i>
+                            Enter the specific name or description of the meal item
+                        </div>
+                    </div>
+
+                    <!-- Category -->
+                    <div class="form-group-modern">
+                        <label class="form-label-modern" for="id_category">
+                            <i class="bi bi-tag"></i>
+                            Meal Category
+                        </label>
+                        <select name="category" 
+                                id="id_category" 
+                                class="form-select form-select-modern"
+                                required>
+                            <option value="">-- Select Category --</option>
+                            <option value="Breakfast" {% if form.category.value == 'Breakfast' %}selected{% endif %}>
+                                🍳 Breakfast
+                            </option>
+                            <option value="Lunch" {% if form.category.value == 'Lunch' %}selected{% endif %}>
+                                🍽️ Lunch
+                            </option>
+                            <option value="Dinner" {% if form.category.value == 'Dinner' %}selected{% endif %}>
+                                🍷 Dinner
+                            </option>
+                            <option value="Snacks" {% if form.category.value == 'Snacks' %}selected{% endif %}>
+                                🍿 Snacks
+                            </option>
+                        </select>
+                        <div class="form-help-text">
+                            <i class="bi bi-info-circle"></i>
+                            Choose the appropriate meal category for better organization
+                        </div>
+                    </div>
+
+                    <!-- Quantity -->
+                    <div class="form-group-modern">
+                        <label class="form-label-modern" for="id_quantity">
+                            <i class="bi bi-hash"></i>
+                            Quantity
+                        </label>
+                        <input type="number" 
+                               name="quantity" 
+                               id="id_quantity"
+                               class="form-control form-control-modern"
+                               placeholder="Enter quantity"
+                               value="{{ form.quantity.value|default:'1' }}"
+                               min="1"
+                               required>
+                        <div class="form-help-text">
+                            <i class="bi bi-info-circle"></i>
+                            Number of servings or portions ordered
+                        </div>
+                    </div>
+
+                    <!-- Price per Unit -->
+                    <div class="form-group-modern">
+                        <label class="form-label-modern" for="id_price_per_unit">
+                            <i class="bi bi-currency-dollar"></i>
+                            Price per Unit
+                        </label>
+                        <div class="input-group-modern">
+                            <span class="currency-symbol">₱</span>
+                            <input type="number" 
+                                   name="price_per_unit" 
+                                   id="id_price_per_unit"
+                                   class="form-control form-control-modern form-control-currency"
+                                   placeholder="0.00"
+                                   step="0.01"
+                                   min="0"
+                                   value="{{ form.price_per_unit.value|default:'' }}"
+                                   required>
+                        </div>
+                        <div class="form-help-text">
+                            <i class="bi bi-info-circle"></i>
+                            Cost per individual serving in Philippine Pesos
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="btn-group-modern">
+                        <button type="submit" class="btn-modern btn-save">
+                            <i class="bi bi-check-circle"></i>
+                            Save Changes
+                        </button>
+                        <a href="{% url 'booking_detail' booking.id %}" class="btn-modern btn-cancel">
+                            <i class="bi bi-x-circle"></i>
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Form validation and interactive features
+document.addEventListener('DOMContentLoaded', function() {
+    // Real-time total calculation
+    const quantityInput = document.getElementById('id_quantity');
+    const priceInput = document.getElementById('id_price_per_unit');
+    
+    function updateTotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const total = quantity * price;
+        
+        // You could add a total display here if needed
+        console.log('Total:', total.toFixed(2));
+    }
+    
+    quantityInput.addEventListener('input', updateTotal);
+    priceInput.addEventListener('input', updateTotal);
+    
+    // Category badge preview
+    const categorySelect = document.getElementById('id_category');
+    categorySelect.addEventListener('change', function() {
+        // Remove existing badges
+        const existingBadge = document.querySelector('.category-badge');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+        
+        // Add new badge if category is selected
+        if (this.value) {
+            const badge = document.createElement('div');
+            badge.className = `category-badge badge-${this.value.toLowerCase()}`;
+            badge.innerHTML = `<i class="bi bi-tag"></i> ${this.value}`;
+            this.parentNode.appendChild(badge);
+        }
+    });
+    
+    // Trigger initial badge display
+    if (categorySelect.value) {
+        categorySelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+});
+</script>
 {% endblock %}
