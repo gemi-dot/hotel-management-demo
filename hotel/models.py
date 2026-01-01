@@ -47,6 +47,18 @@ class Booking(models.Model):
         ('refunded', 'Refunded'),
     ]
 
+##
+    class Meta:
+        indexes = [
+            models.Index(fields=['check_in', 'check_out'], name='booking_dates_idx'),
+            
+            models.Index(fields=['status'], name='booking_status_idx'),
+            models.Index(fields=['payment_status'], name='payment_status_idx'),
+            models.Index(fields=['room', 'check_in'], name='room_checkin_idx'),
+            models.Index(fields=['guest', '-created_at'], name='guest_recent_idx'),
+            models.Index(fields=['-created_at'], name='recent_bookings_idx'),
+        ]   
+###
     guest = models.ForeignKey("Guest", on_delete=models.CASCADE, related_name="bookings")
     room = models.ForeignKey("Room", on_delete=models.CASCADE, related_name="bookings")
     
@@ -181,6 +193,17 @@ class Booking(models.Model):
         else:
             return "Pending"
 
+    class Meta:
+        # Add database indexes for better performance
+        indexes = [
+            # Most common query patterns
+            models.Index(fields=['check_in', 'check_out'], name='booking_dates_idx'),
+            models.Index(fields=['status'], name='booking_status_idx'),
+            models.Index(fields=['payment_status'], name='payment_status_idx'),
+            models.Index(fields=['room', 'check_in'], name='room_checkin_idx'),
+            models.Index(fields=['guest', '-created_at'], name='guest_recent_idx'),
+            models.Index(fields=['-created_at'], name='recent_bookings_idx'),
+        ]
 
 
 class Payment(models.Model):

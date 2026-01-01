@@ -146,6 +146,47 @@
         padding: 20px;
         margin-bottom: 20px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .header-content {
+        display: flex;
+        align-items: center;
+    }
+    
+    .datetime-display {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .datetime-display .date {
+        font-size: 0.9rem;
+        display: block;
+    }
+    
+    .datetime-display .time {
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-header {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+        
+        .datetime-display {
+            align-self: stretch;
+            text-align: center;
+        }
     }
     
     .recent-bookings-card {
@@ -325,11 +366,17 @@
     <div class="main-content">
         <!-- Dashboard Header -->
         <div class="dashboard-header">
-            <h2 class="mb-0">
-                <i class="bi bi-speedometer2"></i>
-                Hotel Management Dashboard
-                <small class="text-muted">| Real-time Overview</small>
-            </h2>
+            <div class="header-content">
+                <h2 class="mb-0">
+                    <i class="bi bi-speedometer2"></i>
+                    Hotel Management Dashboard
+                    <small class="text-muted">| Real-time Overview</small>
+                </h2>
+            </div>
+            <div class="datetime-display">
+                <span class="date" id="currentDate"></span>
+                <span class="time" id="currentTime"></span>
+            </div>
         </div>
 
         <!-- Metric Cards -->
@@ -364,7 +411,8 @@
             </div>
             <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
                 <div class="metric-card dark">
-                    <i class="bi bi-currency-dollar metric-icon"></i>
+                    
+                    <i class="bi bi-cash-stack metric-icon"></i>
                     <div class="metric-value text-dark">₱{{ total_revenue|intcomma }}</div>
                     <p class="metric-label">Total Revenue</p>
                 </div>
@@ -463,6 +511,39 @@ document.addEventListener('click', function(event) {
         sidebar.classList.remove('show');
     }
 });
+
+// Real-time date and time display
+function updateDateTime() {
+    const now = new Date();
+    
+    // Format date (e.g., "Wednesday, January 1, 2026")
+    const dateOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+    
+    // Format time (e.g., "2:30:45 PM")
+    const timeOptions = { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        second: '2-digit', 
+        hour12: true 
+    };
+    const formattedTime = now.toLocaleTimeString('en-US', timeOptions);
+    
+    // Update DOM elements
+    document.getElementById('currentDate').textContent = formattedDate;
+    document.getElementById('currentTime').textContent = formattedTime;
+}
+
+// Update immediately when page loads
+updateDateTime();
+
+// Update every second
+setInterval(updateDateTime, 1000);
 </script>
 {% endblock %}
 

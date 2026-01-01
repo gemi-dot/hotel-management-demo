@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404, redirect
@@ -10,6 +9,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.views.decorators.http import require_POST
+from django.db import models
 from .models import Room, Booking, Payment
 from .forms import RoomForm, BookingForm, PaymentForm
 
@@ -62,8 +62,6 @@ def get_room_status(room, start_datetime, end_datetime):
         return "Vacant", None
 
 
-
-
 def payment_create(request, booking_id):
     booking = get_object_or_404(Booking, pk=booking_id)
 
@@ -88,33 +86,50 @@ def payment_create(request, booking_id):
 from datetime import date
 
 def dashboard(request):
-    total_rooms = Room.objects.count()
-    occupied_rooms = Booking.objects.filter(status="Checked In").count()
+    # ✅ PERFORMANCE FIX: Use efficient aggregations instead of multiple queries
+    from django.db.models import Count, Sum, Q, Case, When, IntegerField, DecimalField
+    
+    # Single query to get room statistics
+    room_stats = Room.objects.aggregate(
+        total_rooms=Count('id'),
+        occupied_rooms=Count('id', filter=Q(bookings__status="Checked In"))
+    )
+    
+    total_rooms = room_stats['total_rooms']
+    occupied_rooms = room_stats['occupied_rooms'] 
     vacant_rooms = total_rooms - occupied_rooms
-    total_revenue = Payment.objects.aggregate(total=Sum("amount"))["total"] or 0
-    total_bookings = Booking.objects.count()  # Add this line
+    
+    # Efficient revenue and booking calculations
+    booking_stats = Booking.objects.aggregate(
+        total_bookings=Count('id'),
+        total_revenue=Sum('payments__amount'),
+        outstanding_balance=Sum(
+            Case(
+                When(total_price__isnull=False, then='total_price'),
+                default=0,
+                output_field=DecimalField()
+            )
+        ) - Sum('payments__amount', filter=Q(payments__isnull=False))
+    )
+    
+    total_revenue = booking_stats['total_revenue'] or 0
+    total_bookings = booking_stats['total_bookings'] or 0
+    outstanding_balance = max(booking_stats['outstanding_balance'] or 0, 0)
+    
     # Occupancy rate
     occupancy_rate = 0
     if total_rooms > 0:
         occupancy_rate = round((occupied_rooms / total_rooms) * 100, 2)
 
-    # Outstanding balances (manual calculation)
-    outstanding_balance = 0
-    for booking in Booking.objects.all():
-        meal_total = booking.meal_transactions.aggregate(total=Sum('total_price'))['total'] or 0
-        grand_total = (booking.total_price or 0) + meal_total
-        total_paid = booking.payments.aggregate(total=Sum('amount'))['total'] or 0
-        outstanding_balance += grand_total - total_paid
-
-    # Payments today
+    # Payments today - single query
     today = date.today()
     payments_today = Payment.objects.filter(payment_date__date=today).count()
 
-    # Meals ordered
+    # Meals ordered - single query
     meals_ordered = MealTransaction.objects.count()
 
-    # Recent bookings
-    recent_bookings = Booking.objects.order_by("-check_in")[:5]
+    # Recent bookings with optimized query
+    recent_bookings = Booking.objects.select_related('guest', 'room').order_by("-check_in")[:5]
 
     # Handle guest creation form
     if request.method == 'POST':
@@ -126,7 +141,7 @@ def dashboard(request):
     else:
         guest_form = GuestForm()
 
-    # Total guests
+    # Total guests - single query
     total_guests = Guest.objects.count()
     
     return render(request, "hotel/dashboard.html", {
@@ -134,14 +149,14 @@ def dashboard(request):
         "occupied_rooms": occupied_rooms,
         "vacant_rooms": vacant_rooms,
         "total_revenue": total_revenue,
-        "total_bookings": total_bookings,  # Pass to template
+        "total_bookings": total_bookings,
         "occupancy_rate": occupancy_rate,
         "outstanding_balance": outstanding_balance,
         "payments_today": payments_today,
         "meals_ordered": meals_ordered,
         "recent_bookings": recent_bookings,
-        "guest_form": guest_form,  # Pass the form to the template
-        "total_guests": total_guests,  # Pass total guests to the template
+        "guest_form": guest_form,
+        "total_guests": total_guests,
     })
 # =======================
 # 🔹 ROOMS
@@ -207,11 +222,17 @@ def room_create(request):
     if request.method == "POST":
         form = RoomForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Room created successfully!")
-            return redirect('room_list')  # Redirect to the room list view
+            try:
+                room = form.save()
+                messages.success(request, f"Room '{room.number}' created successfully!")
+                return redirect('room_list')
+            except Exception as e:
+                messages.error(request, f"Error creating room: {str(e)}")
         else:
-            messages.error(request, "There was an error creating the room. Please check the form.")
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = RoomForm()
 
@@ -220,11 +241,24 @@ def room_create(request):
 @login_required
 def room_edit(request, pk):
     room = get_object_or_404(Room, pk=pk)
-    form = RoomForm(request.POST or None, instance=room)
-    if form.is_valid():
-        form.save()
-        return redirect('room_list')
-    return render(request, 'hotel/room_form.html', {'form': form})
+    if request.method == 'POST':
+        form = RoomForm(request.POST, instance=room)
+        if form.is_valid():
+            try:
+                updated_room = form.save()
+                messages.success(request, f"Room '{updated_room.number}' updated successfully!")
+                return redirect('room_list')
+            except Exception as e:
+                messages.error(request, f"Error updating room: {str(e)}")
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
+    else:
+        form = RoomForm(instance=room)
+    
+    return render(request, 'hotel/room_form.html', {'form': form, 'room': room})
 
 @login_required
 def room_delete(request, pk):
@@ -235,10 +269,6 @@ def room_delete(request, pk):
 def available_rooms(request):
     rooms = Room.objects.filter(is_available=True)
     return render(request, 'hotel/available_rooms.html', {'rooms': rooms})
-
-
-
-
 
 @login_required
 def vacant_rooms(request):
@@ -280,21 +310,16 @@ def vacant_rooms(request):
     return render(request, "hotel/vacant_rooms.html", context)
 
 
-
-
-
-
-
-
-
 # =======================
 # 🔹 BOOKINGS
 @login_required
 def booking_list(request):
-    bookings = Booking.objects.all().order_by("-check_in")
+    # ✅ PERFORMANCE FIX: Properly optimized query with filtering
+    bookings = Booking.objects.select_related('guest', 'room').prefetch_related('payments', 'meal_transactions').order_by("-check_in")
+    
     today = timezone.now().date()
 
-    # ✅ Get filter dates
+    # ✅ Apply date filters to the optimized queryset
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
 
@@ -303,11 +328,13 @@ def booking_list(request):
     if end_date:
         bookings = bookings.filter(check_out__lte=end_date)
 
-    # 🔄 Update statuses dynamically
+    # 🔄 Update statuses dynamically (but avoid saving in loops for better performance)
+    bookings_to_update = []
     for booking in bookings:
         booking.update_payment_status()
 
         if booking.status != "Checked Out":
+            old_status = booking.status
             if booking.is_checked_in:
                 if booking.check_out.date() < today:
                     booking.status = "Overdue"
@@ -320,7 +347,14 @@ def booking_list(request):
                     booking.status = "Pending"
                 elif booking.check_out.date() < today:
                     booking.status = "No Show"
-            booking.save(update_fields=["status"])
+            
+            # Only save if status actually changed
+            if old_status != booking.status:
+                bookings_to_update.append(booking)
+    
+    # Bulk update changed statuses for better performance
+    if bookings_to_update:
+        Booking.objects.bulk_update(bookings_to_update, ['status'])
 
     paginator = Paginator(bookings, 10)
     page_number = request.GET.get("page")
@@ -338,7 +372,11 @@ def booking_list(request):
 
 @login_required
 def booking_detail(request, pk):
-    booking = get_object_or_404(Booking, pk=pk)
+    # ✅ PERFORMANCE FIX: Use select_related and prefetch_related to avoid N+1 queries
+    booking = get_object_or_404(
+        Booking.objects.select_related('guest', 'room').prefetch_related('payments', 'meal_transactions'), 
+        pk=pk
+    )
     today = date.today()
 
     if request.method == "POST":
@@ -371,27 +409,25 @@ def booking_detail(request, pk):
             elif booking.check_out.date() < today:
                 booking.status = "No Show"
 
-    payments = Payment.objects.filter(booking=booking).order_by('-payment_date')
+    # ✅ Use prefetched data instead of separate queries
+    payments = booking.payments.all().order_by('-payment_date')
 
-    # Calculate the total cost of all meal transactions
-    meal_total = booking.meal_transactions.aggregate(total=Sum('total_price'))['total'] or 0
+    # Calculate meal total using prefetched data
+    meal_total = sum(meal.total_price or 0 for meal in booking.meal_transactions.all())
 
     # Calculate the grand total (room price + meal total)
     grand_total = booking.total_price + meal_total
 
-    payments = Payment.objects.filter(booking=booking).order_by('-payment_date')
-
-    outstanding_balance = grand_total - booking.total_paid
-
-
+    # Calculate outstanding balance using prefetched payment data
+    total_paid = sum(payment.amount for payment in payments)
+    outstanding_balance = grand_total - total_paid
 
     return render(request, "hotel/booking_detail.html", {
         "booking": booking,
         "payments": payments,
-        "meal_total": meal_total,  # Pass the meal total to the template
-        "grand_total": grand_total,  # Pass the grand total to the template
+        "meal_total": meal_total,
+        "grand_total": grand_total,
         "outstanding_balance": outstanding_balance,
-
     })
     
 @login_required
@@ -456,22 +492,41 @@ def booking_create(request):
     if request.method == 'POST':
         form = BookingForm(request.POST)
         if form.is_valid():
-            booking = form.save(commit=False)
+            try:
+                booking = form.save(commit=False)
+                
+                # Apply fixed check-in/check-out times if needed
+                check_in_date = form.cleaned_data['check_in']
+                check_out_date = form.cleaned_data['check_out']
+                
+                # Set specific times (2 PM check-in, 12 PM check-out)
+                from datetime import time
+                booking.check_in = timezone.make_aware(datetime.combine(check_in_date, time(14, 0)))
+                booking.check_out = timezone.make_aware(datetime.combine(check_out_date, time(12, 0)))
+                
+                # Compute total price
+                booking.total_price = booking.compute_total_price()
+                booking.save()
 
-            # compute total price (make sure your model has this method)
-            booking.total_price = booking.compute_total_price()  
-            booking.save()
-
-            messages.success(request, "Booking created successfully!")
-            return redirect('booking_detail', pk=booking.pk)
+                messages.success(request, f"Booking #{booking.pk} created successfully!")
+                return redirect('booking_detail', pk=booking.pk)
+            except Exception as e:
+                messages.error(request, f"Error creating booking: {str(e)}")
         else:
-            messages.error(request, "There was a problem with the booking form. Please check the fields.")
+            # Form has validation errors
+            if form.non_field_errors():
+                for error in form.non_field_errors():
+                    messages.error(request, error)
+            
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = BookingForm()
 
-    # Always load guests and available rooms for dropdowns
-    guests = Guest.objects.all()
-    rooms = Room.objects.filter(is_available=True)
+    # Always load fresh data for dropdowns
+    guests = Guest.objects.all().order_by('name')
+    rooms = Room.objects.filter(is_available=True).order_by('number')
 
     return render(request, 'hotel/booking_form.html', {
         'form': form,
@@ -483,17 +538,49 @@ def booking_create(request):
 @login_required
 def booking_edit(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
+    
     if request.method == 'POST':
         form = BookingForm(request.POST, instance=booking)
         if form.is_valid():
-            form.save()
-            # Check if the payment status was manually changed
-            manual_override = 'payment_status' in form.changed_data
-            booking.update_payment_status(manual_override=manual_override)
-            return redirect('booking_list')  # Redirect back to the booking list
+            try:
+                updated_booking = form.save(commit=False)
+                
+                # Recompute total price
+                updated_booking.total_price = updated_booking.compute_total_price()
+                updated_booking.save()
+                
+                # Check if payment status was manually changed
+                manual_override = 'payment_status' in form.changed_data
+                updated_booking.update_payment_status(manual_override=manual_override)
+                
+                messages.success(request, f"Booking #{updated_booking.pk} updated successfully!")
+                return redirect('booking_detail', pk=updated_booking.pk)
+            except Exception as e:
+                messages.error(request, f"Error updating booking: {str(e)}")
+        else:
+            # Form has validation errors
+            if form.non_field_errors():
+                for error in form.non_field_errors():
+                    messages.error(request, error)
+            
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = BookingForm(instance=booking)
-    return render(request, 'hotel/booking_edit.html', {'form': form, 'booking': booking})
+    
+    # Load fresh data for dropdowns
+    guests = Guest.objects.all().order_by('name')
+    rooms = Room.objects.filter(
+        models.Q(is_available=True) | models.Q(id=booking.room.id)
+    ).order_by('number')
+    
+    return render(request, 'hotel/booking_form.html', {
+        'form': form, 
+        'booking': booking,
+        'guests': guests,
+        'rooms': rooms,
+    })
 
 @login_required
 def booking_delete(request, pk):
@@ -786,12 +873,23 @@ def create_payment(request, booking_id):
     if request.method == 'POST':
         form = PaymentForm(request.POST)
         if form.is_valid():
-            payment = form.save(commit=False)
-            payment.booking = booking  # Associate the payment with the booking
-            payment.save()
-            booking.update_payment_status()  # Update payment status after adding payment
-            messages.success(request, f"Payment successfully added for booking #{booking.id}.")
-            return redirect('booking_detail', pk=booking.id)
+            try:
+                payment = form.save(commit=False)
+                payment.booking = booking
+                payment.save()
+                
+                # Update booking payment status
+                booking.update_payment_status()
+                
+                messages.success(request, f"Payment of ${payment.amount} successfully added for booking #{booking.id}.")
+                return redirect('booking_detail', pk=booking.id)
+            except Exception as e:
+                messages.error(request, f"Error processing payment: {str(e)}")
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = PaymentForm()
 
@@ -827,17 +925,69 @@ def guest_create(request):
     if request.method == 'POST':
         form = GuestForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Guest added successfully!")
-            return redirect('guest_list')  # Redirect to guest list
+            try:
+                guest = form.save()
+                messages.success(request, f"Guest '{guest.name}' added successfully!")
+                return redirect('guest_list')
+            except Exception as e:
+                messages.error(request, f"Error creating guest: {str(e)}")
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = GuestForm()
+    
     return render(request, 'hotel/guest_form.html', {'form': form})
 
 @login_required
 def guest_list(request):
-    guests = Guest.objects.all()
-    return render(request, 'hotel/guest_list.html', {'guests': guests})
+    # ✅ PERFORMANCE FIX: Use prefetch_related to avoid N+1 queries
+    # This loads all guest bookings in just 2 queries instead of N+1
+    guests = Guest.objects.prefetch_related('bookings').all()
+    
+    # Calculate additional stats efficiently
+    recent_guests_count = Guest.objects.filter(
+        bookings__created_at__gte=timezone.now() - timedelta(days=30)
+    ).distinct().count()
+    
+    # Calculate total guest bookings efficiently
+    total_guest_bookings = Booking.objects.count()
+    
+    context = {
+        'guests': guests,
+        'recent_guests_count': recent_guests_count,
+        'total_guest_bookings': total_guest_bookings,
+    }
+    
+    return render(request, 'hotel/guest_list.html', context)
+
+@login_required
+def guest_detail(request, pk):
+    guest = get_object_or_404(Guest, pk=pk)
+    
+    # Get all bookings for this guest
+    guest_bookings = Booking.objects.filter(guest=guest).order_by('-check_in')
+    
+    # Calculate guest statistics
+    total_bookings = guest_bookings.count()
+    total_spent = 0
+    
+    for booking in guest_bookings:
+        # Calculate total spent including meals
+        meal_total = booking.meal_transactions.aggregate(total=Sum('total_price'))['total'] or 0
+        booking_total = (booking.total_price or 0) + meal_total
+        total_spent += booking_total
+    
+    context = {
+        'guest': guest,
+        'guest_bookings': guest_bookings,
+        'total_bookings': total_bookings,
+        'total_spent': total_spent,
+    }
+    
+    return render(request, 'hotel/guest_detail.html', context)
 
 @login_required
 def guest_edit(request, pk):
@@ -845,11 +995,20 @@ def guest_edit(request, pk):
     if request.method == 'POST':
         form = GuestForm(request.POST, instance=guest)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Guest updated successfully!")
-            return redirect('guest_list')
+            try:
+                updated_guest = form.save()
+                messages.success(request, f"Guest '{updated_guest.name}' updated successfully!")
+                return redirect('guest_list')
+            except Exception as e:
+                messages.error(request, f"Error updating guest: {str(e)}")
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = GuestForm(instance=guest)
+    
     return render(request, 'hotel/guest_form.html', {'form': form, 'guest': guest})
 
 @login_required
@@ -892,11 +1051,19 @@ def add_meal_transaction(request, booking_id):
     if request.method == "POST":
         form = MealTransactionForm(request.POST)
         if form.is_valid():
-            meal_transaction = form.save(commit=False)
-            meal_transaction.booking = booking
-            meal_transaction.save()
-            messages.success(request, "Meal transaction added successfully!")
-            return redirect('booking_detail', pk=booking.id)
+            try:
+                meal_transaction = form.save(commit=False)
+                meal_transaction.booking = booking
+                meal_transaction.save()
+                messages.success(request, f"Meal '{meal_transaction.meal_name}' added successfully!")
+                return redirect('booking_detail', pk=booking.id)
+            except Exception as e:
+                messages.error(request, f"Error adding meal transaction: {str(e)}")
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = MealTransactionForm()
 
@@ -913,9 +1080,17 @@ def edit_meal_transaction(request, booking_id, meal_id):
     if request.method == "POST":
         form = MealTransactionForm(request.POST, instance=meal_transaction)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Meal transaction updated successfully!")
-            return redirect('booking_detail', pk=booking.id)
+            try:
+                updated_meal = form.save()
+                messages.success(request, f"Meal '{updated_meal.meal_name}' updated successfully!")
+                return redirect('booking_detail', pk=booking.id)
+            except Exception as e:
+                messages.error(request, f"Error updating meal transaction: {str(e)}")
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.title()}: {error}")
     else:
         form = MealTransactionForm(instance=meal_transaction)
 

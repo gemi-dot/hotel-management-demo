@@ -1,41 +1,580 @@
 {% extends 'hotel/base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Guest List</h2>
-    <a href="{% url 'guest_create' %}" class="btn btn-primary mb-3">Add Guest</a>
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-dark mb-3">Back to Dashboard</a>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for guest in guests %}
-            <tr>
-                <td>{{ guest.name }}</td>
-                <td>{{ guest.email }}</td>
-                <td>{{ guest.phone|default:"Not provided" }}</td>
-                <td>{{ guest.address|default:"Not provided" }}</td>
-                <td>
-                    <a href="{% url 'guest_edit' guest.id %}" class="btn btn-sm btn-warning">Edit</a>
-                    <form method="post" action="{% url 'guest_delete' guest.id %}" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this guest?');">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center">No guests found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<style>
+    .guest-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .page-header h2 {
+        margin: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .action-bar {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #e9ecef;
+    }
+    
+    .action-btn {
+        margin: 5px;
+        border-radius: 25px;
+        padding: 10px 20px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .btn-add-guest {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .btn-dashboard {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .guest-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border-left: 4px solid;
+        transition: transform 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+    
+    .stat-card.total { border-left-color: #007bff; }
+    .stat-card.active { border-left-color: #28a745; }
+    .stat-card.recent { border-left-color: #ffc107; }
+    .stat-card.bookings { border-left-color: #dc3545; }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    
+    .stat-icon {
+        float: right;
+        font-size: 2rem;
+        opacity: 0.3;
+        margin-top: -10px;
+    }
+    
+    .search-filter-bar {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #e9ecef;
+    }
+    
+    .search-input {
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        padding: 10px 20px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .search-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: white;
+        outline: none;
+    }
+    
+    .guest-table-container {
+        background: white;
+        border-radius: 15px;
+        padding: 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+    }
+    
+    .table-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 25px;
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    
+    .table-modern {
+        margin: 0;
+    }
+    
+    .table-modern thead {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .table-modern thead th {
+        border: none;
+        padding: 15px 20px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    
+    .table-modern tbody td {
+        padding: 15px 20px;
+        vertical-align: middle;
+        border-color: #f1f3f4;
+    }
+    
+    .table-modern tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .table-modern tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.005);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .guest-name {
+        font-weight: 600;
+        color: #495057;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.05rem;
+    }
+    
+    .guest-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .contact-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #495057;
+    }
+    
+    .contact-info i {
+        color: #6c757d;
+        width: 16px;
+    }
+    
+    .address-text {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .btn-action {
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        border: none;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        text-decoration: none;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .btn-view {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+    }
+    
+    .btn-edit {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #212529;
+    }
+    
+    .btn-delete {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+    
+    .empty-state h5 {
+        margin-bottom: 10px;
+        color: #495057;
+    }
+    
+    .guest-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    @media (max-width: 768px) {
+        .guest-container {
+            padding: 15px 0;
+        }
+        
+        .page-header {
+            padding: 20px;
+        }
+        
+        .action-bar {
+            padding: 15px;
+        }
+        
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+            margin: 5px 0;
+        }
+        
+        .guest-stats {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .table-modern thead th,
+        .table-modern tbody td {
+            padding: 10px 8px;
+            font-size: 0.85rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .btn-action {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .guest-avatar {
+            width: 30px;
+            height: 30px;
+            font-size: 0.9rem;
+        }
+        
+        .address-text {
+            max-width: 100px;
+        }
+    }
+</style>
+
+<div class="guest-container">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h2>
+                <i class="bi bi-people"></i>
+                Guest Management
+            </h2>
+            <p class="mb-0 mt-2 opacity-75">
+                <i class="bi bi-info-circle"></i>
+                Manage guest information and contact details
+            </p>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <h6 class="mb-0">
+                    <i class="bi bi-lightning"></i> Quick Actions:
+                </h6>
+                <div>
+                    <a href="{% url 'guest_create' %}" class="action-btn btn-add-guest">
+                        <i class="bi bi-person-plus"></i> Add New Guest
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="action-btn btn-dashboard">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guest Statistics -->
+        <div class="guest-stats">
+            <div class="stat-card total">
+                <i class="bi bi-people stat-icon"></i>
+                <div class="stat-value text-primary">{{ guests|length }}</div>
+                <p class="stat-label">Total Guests</p>
+            </div>
+            <div class="stat-card active">
+                <i class="bi bi-person-check stat-icon"></i>
+                <div class="stat-value text-success">
+                    {% for guest in guests %}{% if guest.bookings.exists %}{{ forloop.counter0|add:1 }}{% endif %}{% empty %}0{% endfor %}
+                </div>
+                <p class="stat-label">Guests with Bookings</p>
+            </div>
+            <div class="stat-card recent">
+                <i class="bi bi-clock stat-icon"></i>
+                <div class="stat-value text-warning">{{ recent_guests_count|default:0 }}</div>
+                <p class="stat-label">New This Month</p>
+            </div>
+            <div class="stat-card bookings">
+                <i class="bi bi-calendar-check stat-icon"></i>
+                <div class="stat-value text-danger">{{ total_guest_bookings|default:0 }}</div>
+                <p class="stat-label">Total Bookings</p>
+            </div>
+        </div>
+
+        <!-- Search and Filter Bar -->
+        <div class="search-filter-bar">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control search-input border-start-0" 
+                               id="guestSearch" 
+                               placeholder="Search guests by name, email, or phone..."
+                               style="border-left: none; background: #f8f9fa;">
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        Showing <span id="visibleCount">{{ guests|length }}</span> of {{ guests|length }} guests
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guest Table -->
+        <div class="guest-table-container">
+            <div class="table-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-list-ul"></i>
+                    Guest Directory
+                </div>
+                <span class="badge bg-light text-dark">{{ guests|length }} guest{{ guests|length|pluralize }}</span>
+            </div>
+            
+            {% if guests %}
+                <div class="table-responsive">
+                    <table class="table table-modern">
+                        <thead>
+                            <tr>
+                                <th><i class="bi bi-person"></i> Guest</th>
+                                <th><i class="bi bi-envelope"></i> Email</th>
+                                <th><i class="bi bi-telephone"></i> Phone</th>
+                                <th><i class="bi bi-geo-alt"></i> Address</th>
+                                <th class="text-center"><i class="bi bi-gear"></i> Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="guestTableBody">
+                            {% for guest in guests %}
+                            <tr class="guest-row" data-name="{{ guest.name|lower }}" 
+                                data-email="{{ guest.email|lower }}" 
+                                data-phone="{{ guest.phone|default:''|lower }}">
+                                <td>
+                                    <div class="guest-name">
+                                        <div class="guest-avatar">
+                                            {{ guest.name|first|upper }}
+                                        </div>
+                                        <div>
+                                            <strong>{{ guest.name }}</strong>
+                                            {% if guest.bookings.exists %}
+                                                <span class="guest-badge">Active Guest</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="contact-info">
+                                        <i class="bi bi-envelope"></i>
+                                        {{ guest.email|default:"Not provided" }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="contact-info">
+                                        <i class="bi bi-telephone"></i>
+                                        {{ guest.phone|default:"Not provided" }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="contact-info">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <span class="address-text" title="{{ guest.address|default:'Not provided' }}">
+                                            {{ guest.address|default:"Not provided" }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <a href="{% url 'guest_detail' guest.id %}" class="btn-action btn-view">
+                                            <i class="bi bi-eye"></i>
+                                            View
+                                        </a>
+                                        <a href="{% url 'guest_edit' guest.id %}" class="btn-action btn-edit">
+                                            <i class="bi bi-pencil"></i>
+                                            Edit
+                                        </a>
+                                        <form method="post" action="{% url 'guest_delete' guest.id %}" 
+                                              class="d-inline"
+                                              onsubmit="return confirm('Are you sure you want to delete {{ guest.name }}? This action cannot be undone.');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-action btn-delete">
+                                                <i class="bi bi-trash"></i>
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-people"></i>
+                    <h5>No Guests Found</h5>
+                    <p class="text-muted">Start by adding your first guest to the system.</p>
+                    <a href="{% url 'guest_create' %}" class="action-btn btn-add-guest mt-3">
+                        <i class="bi bi-person-plus"></i> Add Your First Guest
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const searchInput = document.getElementById('guestSearch');
+    const guestRows = document.querySelectorAll('.guest-row');
+    const visibleCount = document.getElementById('visibleCount');
+    
+    function performSearch() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        let visibleRowCount = 0;
+        
+        guestRows.forEach(row => {
+            const name = row.getAttribute('data-name');
+            const email = row.getAttribute('data-email');
+            const phone = row.getAttribute('data-phone');
+            
+            const isMatch = name.includes(searchTerm) || 
+                           email.includes(searchTerm) || 
+                           phone.includes(searchTerm);
+            
+            if (isMatch || searchTerm === '') {
+                row.style.display = '';
+                row.style.animation = 'fadeIn 0.3s ease';
+                visibleRowCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Update visible count
+        if (visibleCount) {
+            visibleCount.textContent = visibleRowCount;
+        }
+    }
+    
+    // Real-time search
+    searchInput.addEventListener('input', performSearch);
+    
+    // Auto-focus search input
+    searchInput.focus();
+    
+    // Add fade-in animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
 {% endblock %}
