@@ -1,48 +1,183 @@
-{% extends 'hotel/base.html' %}
+{% extends "hotel/base_dashboard.html" %}
 {% load static %}
 {% load humanize %}
 {% load peso_filters %}
 
+{% block title %}Dashboard - Hotel Management{% endblock %}
+
 {% block content %}
 <style>
+    /* Reset base template container styling for dashboard */
+    .container {
+        padding: 0 !important;
+        background: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        max-width: none !important;
+    }
+    
+    /* Override navbar and body for full-screen effect */
+    body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* Background Animation */
     .dashboard-container {
         display: flex;
         min-height: 100vh;
-        margin: -20px; /* Offset base container padding */
+        margin: 0;
+        position: relative;
+        overflow-x: hidden;
     }
+    
+    /* Animated Background Elements */
+    .dashboard-container::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(147, 51, 234, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
+        z-index: 0;
+        animation: backgroundShift 20s ease-in-out infinite;
+    }
+    
+    @keyframes backgroundShift {
+        0%, 100% { 
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(147, 51, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
+        }
+        33% { 
+            background: 
+                radial-gradient(circle at 70% 30%, rgba(102, 126, 234, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 30% 70%, rgba(147, 51, 234, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 60% 60%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+        }
+        66% { 
+            background: 
+                radial-gradient(circle at 50% 90%, rgba(102, 126, 234, 0.18) 0%, transparent 50%),
+                radial-gradient(circle at 90% 10%, rgba(147, 51, 234, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 10% 50%, rgba(59, 130, 246, 0.12) 0%, transparent 50%);
+        }
+    }
+    
+    /* Floating Icons Animation */
+    .floating-icons {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+        overflow: hidden;
+    }
+    
+    .floating-icon {
+        position: absolute;
+        color: rgba(102, 126, 234, 0.08);
+        font-size: 3rem;
+        animation: float 25s infinite linear;
+    }
+    
+    @keyframes float {
+        0% {
+            transform: translateY(100vh) rotate(0deg) scale(0.8);
+            opacity: 0;
+        }
+        5% {
+            opacity: 0.6;
+        }
+        95% {
+            opacity: 0.6;
+        }
+        100% {
+            transform: translateY(-10vh) rotate(360deg) scale(1.2);
+            opacity: 0;
+        }
+    }
+    
+    .floating-icon:nth-child(1) { left: 5%; animation-delay: 0s; font-size: 2.5rem; }
+    .floating-icon:nth-child(2) { left: 15%; animation-delay: 3s; font-size: 2rem; }
+    .floating-icon:nth-child(3) { left: 25%; animation-delay: 6s; font-size: 3.5rem; }
+    .floating-icon:nth-child(4) { left: 35%; animation-delay: 9s; font-size: 2.8rem; }
+    .floating-icon:nth-child(5) { left: 45%; animation-delay: 12s; font-size: 2.2rem; }
+    .floating-icon:nth-child(6) { left: 55%; animation-delay: 15s; font-size: 3rem; }
+    .floating-icon:nth-child(7) { left: 65%; animation-delay: 18s; font-size: 2.6rem; }
+    .floating-icon:nth-child(8) { left: 75%; animation-delay: 21s; font-size: 2.4rem; }
+    .floating-icon:nth-child(9) { left: 85%; animation-delay: 24s; font-size: 3.2rem; }
+    .floating-icon:nth-child(10) { left: 95%; animation-delay: 2s; font-size: 2.3rem; }
     
     .sidebar {
         width: 280px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(145deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
         color: white;
         padding: 0;
-        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-        position: fixed;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+        position: relative;
         height: 100vh;
         overflow-y: auto;
-        z-index: 1000;
+        z-index: 100;
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
     }
     
+    /* Enhanced Sidebar Header with Glow Effect */
     .sidebar-header {
-        padding: 20px;
-        background: rgba(0,0,0,0.1);
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 25px;
+        background: rgba(0,0,0,0.3);
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .sidebar-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+        transform: rotate(45deg);
+        animation: shimmer 4s infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
     }
     
     .sidebar-header h4 {
         margin: 0;
-        font-weight: 600;
+        font-weight: 700;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 15px;
+        position: relative;
+        z-index: 1;
+        font-size: 1.1rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     
     .main-content {
         flex: 1;
-        margin-left: 280px;
-        padding: 20px;
-        background: #f8f9fa;
+        padding: 25px;
+        background: rgba(248, 250, 252, 0.8);
         min-height: 100vh;
+        backdrop-filter: blur(10px);
+        position: relative;
+        z-index: 10;
     }
     
     .quick-actions {
@@ -56,13 +191,14 @@
     }
     
     .quick-actions .action-category {
-        padding: 15px 20px 10px;
-        font-size: 0.85rem;
-        font-weight: 600;
+        padding: 15px 25px 10px;
+        font-size: 0.8rem;
+        font-weight: 700;
         text-transform: uppercase;
-        opacity: 0.8;
+        opacity: 0.9;
         border-bottom: 1px solid rgba(255,255,255,0.1);
-        margin-top: 10px;
+        margin-top: 15px;
+        letter-spacing: 1px;
     }
     
     .quick-actions .action-category:first-child {
@@ -72,143 +208,246 @@
     .quick-actions a {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 20px;
-        color: white;
+        gap: 15px;
+        padding: 15px 25px;
+        color: rgba(255,255,255,0.9);
         text-decoration: none;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         border-left: 3px solid transparent;
+        position: relative;
+    }
+    
+    .quick-actions a::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 0;
+        background: rgba(255,255,255,0.1);
+        transition: width 0.3s ease;
+        z-index: -1;
+    }
+    
+    .quick-actions a:hover::before {
+        width: 100%;
     }
     
     .quick-actions a:hover {
         background: rgba(255,255,255,0.1);
-        border-left: 3px solid #ffc107;
-        color: #ffc107;
-        transform: translateX(5px);
+        border-left: 3px solid #fbbf24;
+        color: #fbbf24;
+        transform: translateX(8px);
+        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.2);
     }
     
     .quick-actions a i {
-        font-size: 1.2rem;
-        width: 20px;
+        font-size: 1.3rem;
+        width: 25px;
         text-align: center;
     }
     
     .action-badge {
         margin-left: auto;
-        font-size: 0.7rem;
-        padding: 2px 6px;
-        border-radius: 10px;
+        font-size: 0.65rem;
+        padding: 4px 8px;
+        border-radius: 12px;
         background: rgba(255,255,255,0.2);
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
     
+    /* Enhanced Metric Cards */
     .metric-card {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        border-left: 4px solid #007bff;
-        transition: transform 0.2s ease;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        border-left: 5px solid #3b82f6;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+        z-index: 10;
+    }
+    
+    /* Card Hover Effects with Shine */
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+        transition: left 0.6s ease;
+    }
+    
+    .metric-card:hover::before {
+        left: 100%;
     }
     
     .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        transform: translateY(-8px) scale(1.03);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
     
-    .metric-card.success { border-left-color: #28a745; }
-    .metric-card.warning { border-left-color: #ffc107; }
-    .metric-card.danger { border-left-color: #dc3545; }
-    .metric-card.info { border-left-color: #17a2b8; }
-    .metric-card.dark { border-left-color: #343a40; }
+    .metric-card.success { border-left-color: #10b981; }
+    .metric-card.warning { border-left-color: #f59e0b; }
+    .metric-card.danger { border-left-color: #ef4444; }
+    .metric-card.info { border-left-color: #06b6d4; }
+    .metric-card.dark { border-left-color: #6b7280; }
     
     .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
-        margin: 10px 0 5px;
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin: 15px 0 8px;
+        animation: countUp 2s ease-out;
+    }
+    
+    @keyframes countUp {
+        0% { transform: scale(0.8); opacity: 0; }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); opacity: 1; }
     }
     
     .metric-label {
-        color: #6c757d;
-        font-size: 0.9rem;
+        color: #6b7280;
+        font-size: 0.85rem;
         margin: 0;
+        font-weight: 500;
     }
     
     .metric-icon {
         float: right;
-        font-size: 2rem;
-        opacity: 0.3;
-        margin-top: -10px;
+        font-size: 1.8rem;
+        opacity: 0.15;
+        margin-top: -15px;
     }
     
+    /* Enhanced Dashboard Header */
     .dashboard-header {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
         display: flex;
         justify-content: space-between;
         align-items: center;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+        z-index: 10;
     }
     
-    .header-content {
-        display: flex;
-        align-items: center;
+    .dashboard-header::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4, #3b82f6);
+        background-size: 200% 100%;
+        animation: gradientFlow 4s ease infinite;
     }
     
-    .datetime-display {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 10px 15px;
-        border-radius: 8px;
+    @keyframes gradientFlow {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    .header-content h2 {
+        margin: 0;
+        color: #1e293b;
+        font-weight: 700;
+        font-size: 1.4rem;
+    }
+    
+    .header-content small {
+        color: #64748b;
         font-weight: 500;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Enhanced DateTime Display */
+    .datetime-display {
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        color: white;
+        padding: 20px 25px;
+        border-radius: 15px;
+        font-weight: 600;
+        box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
+        text-align: center;
+    }
+    
+    .datetime-display::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #3b82f6);
+        background-size: 400% 400%;
+        z-index: -1;
+        border-radius: 15px;
+        animation: borderGlow 3s ease infinite;
+    }
+    
+    @keyframes borderGlow {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
     .datetime-display .date {
         font-size: 0.9rem;
         display: block;
+        opacity: 0.9;
+        margin-bottom: 5px;
     }
     
     .datetime-display .time {
-        font-size: 1.1rem;
-        font-weight: 600;
+        font-size: 1.2rem;
+        font-weight: 700;
         display: block;
     }
     
-    @media (max-width: 768px) {
-        .dashboard-header {
-            flex-direction: column;
-            gap: 15px;
-            text-align: center;
-        }
-        
-        .datetime-display {
-            align-self: stretch;
-            text-align: center;
-        }
-    }
-    
+    /* Recent Bookings Enhanced */
     .recent-bookings-card {
-        background: white;
-        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
         padding: 0;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
         overflow: hidden;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        z-index: 10;
+        position: relative;
     }
     
     .recent-bookings-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
-        padding: 15px 20px;
+        padding: 20px 25px;
         margin: 0;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 1.1rem;
     }
     
+    /* Responsive Design */
     @media (max-width: 768px) {
         .sidebar {
             transform: translateX(-100%);
             transition: transform 0.3s ease;
+            position: fixed;
+            z-index: 1000;
         }
         
         .sidebar.show {
@@ -217,6 +456,7 @@
         
         .main-content {
             margin-left: 0;
+            padding: 15px;
         }
         
         .mobile-toggle {
@@ -225,18 +465,65 @@
             top: 20px;
             left: 20px;
             z-index: 1001;
-            background: #667eea;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             color: white;
             border: none;
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .dashboard-header {
+            flex-direction: column;
+            gap: 20px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+        }
+        
+        .metric-icon {
+            font-size: 1.5rem;
         }
     }
     
     .mobile-toggle {
         display: none;
     }
+    
+    /* Scrollbar Styling */
+    .sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .sidebar::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .sidebar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.3);
+        border-radius: 3px;
+    }
+    
+    .sidebar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.5);
+    }
 </style>
+
+<!-- Floating Background Icons -->
+<div class="floating-icons">
+    <i class="floating-icon bi bi-building"></i>
+    <i class="floating-icon bi bi-calendar-check"></i>
+    <i class="floating-icon bi bi-people"></i>
+    <i class="floating-icon bi bi-house-door"></i>
+    <i class="floating-icon bi bi-star"></i>
+    <i class="floating-icon bi bi-heart"></i>
+    <i class="floating-icon bi bi-gem"></i>
+    <i class="floating-icon bi bi-award"></i>
+    <i class="floating-icon bi bi-trophy"></i>
+    <i class="floating-icon bi bi-shield-check"></i>
+</div>
 
 <div class="dashboard-container">
     <!-- Mobile Toggle Button -->
@@ -367,127 +654,209 @@
         <!-- Dashboard Header -->
         <div class="dashboard-header">
             <div class="header-content">
-                <h2 class="mb-0">
-                    <i class="bi bi-speedometer2"></i>
-                    Hotel Management Dashboard
-                    <small class="text-muted">| Real-time Overview</small>
-                </h2>
+                <h2>Welcome back, {{ user.first_name|default:'Admin' }}! 👋</h2>
+                <small>Here's what's happening at your hotel today</small>
             </div>
             <div class="datetime-display">
                 <span class="date" id="currentDate"></span>
                 <span class="time" id="currentTime"></span>
             </div>
         </div>
-
-        <!-- Metric Cards -->
+        
+        <!-- Metrics Cards -->
         <div class="row mb-4">
-            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-                <div class="metric-card">
-                    <i class="bi bi-calendar-check metric-icon"></i>
-                    <div class="metric-value text-primary">{{ total_bookings }}</div>
-                    <p class="metric-label">Total Bookings</p>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="col-md-3 mb-4">
                 <div class="metric-card success">
-                    <i class="bi bi-cash-stack metric-icon"></i>
-                    <div class="metric-value text-success">{{ payments_today }}</div>
-                    <p class="metric-label">Payments Today</p>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-                <div class="metric-card info">
-                    <i class="bi bi-pie-chart metric-icon"></i>
-                    <div class="metric-value text-info">{{ occupancy_rate }}%</div>
-                    <p class="metric-label">Occupancy Rate</p>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-                <div class="metric-card warning">
-                    <i class="bi bi-cup-hot metric-icon"></i>
-                    <div class="metric-value text-warning">{{ meals_ordered }}</div>
-                    <p class="metric-label">Meals Ordered</p>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-                <div class="metric-card dark">
-                    
-                    <i class="bi bi-cash-stack metric-icon"></i>
-                    <div class="metric-value text-dark">₱{{ total_revenue|intcomma }}</div>
+                    <i class="bi bi-currency-dollar metric-icon"></i>
+                    <div class="metric-value">₱{{ total_revenue|peso|default:"0.00" }}</div>
                     <p class="metric-label">Total Revenue</p>
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-                <div class="metric-card danger">
+            <div class="col-md-3 mb-4">
+                <div class="metric-card warning">
                     <i class="bi bi-exclamation-triangle metric-icon"></i>
-                    <div class="metric-value text-danger">₱{{ outstanding_balance|intcomma }}</div>
+                    <div class="metric-value">₱{{ outstanding_balance|peso|default:"0.00" }}</div>
                     <p class="metric-label">Outstanding Balance</p>
                 </div>
             </div>
-        </div>
-
-        <!-- Recent Bookings -->
-        <div class="recent-bookings-card">
-            <div class="recent-bookings-header">
-                <i class="bi bi-clock-history"></i>
-                Recent Bookings
-                <span class="badge bg-light text-dark ms-2">Last 5</span>
+            <div class="col-md-3 mb-4">
+                <div class="metric-card info">
+                    <i class="bi bi-calendar-check metric-icon"></i>
+                    <div class="metric-value">{{ total_bookings|default:"0" }}</div>
+                    <p class="metric-label">Total Bookings</p>
+                </div>
             </div>
-            <div class="p-3">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Guest</th>
-                                <th>Room</th>
-                                <th>Check-in</th>
-                                <th>Check-out</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for booking in recent_bookings %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ booking.guest.name }}</strong><br>
-                                        <small class="text-muted">{{ booking.guest.email }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ booking.room.number }}</span>
-                                        {{ booking.room.room_type|title }}
-                                    </td>
-                                    <td>{{ booking.check_in|date:"M d, Y" }}</td>
-                                    <td>{{ booking.check_out|date:"M d, Y" }}</td>
-                                    <td>
-                                        {% if booking.status == "Pending" %}
-                                            <span class="badge bg-warning text-dark">Pending</span>
-                                        {% elif booking.status == "Checked In" %}
-                                            <span class="badge bg-success">Checked In</span>
-                                        {% elif booking.status == "Checked Out" %}
-                                            <span class="badge bg-secondary">Checked Out</span>
-                                        {% elif booking.status == "No Show" %}
-                                            <span class="badge bg-danger">No Show</span>
-                                        {% else %}
-                                            <span class="badge bg-info">Reserved</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> View
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        <i class="bi bi-inbox"></i><br>
-                                        No recent bookings found
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="col-md-3 mb-4">
+                <div class="metric-card dark">
+                    <i class="bi bi-house-door metric-icon"></i>
+                    <div class="metric-value">{{ occupied_rooms|default:"0" }}/{{ total_rooms|default:"0" }}</div>
+                    <p class="metric-label">Occupied Rooms</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Second Row of Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-4">
+                <div class="metric-card danger">
+                    <i class="bi bi-clock-history metric-icon"></i>
+                    <div class="metric-value">{{ pending_checkins|default:"0" }}</div>
+                    <p class="metric-label">Pending Check-ins</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="metric-card success">
+                    <i class="bi bi-door-open metric-icon"></i>
+                    <div class="metric-value">{{ pending_checkouts|default:"0" }}</div>
+                    <p class="metric-label">Pending Check-outs</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="metric-card info">
+                    <i class="bi bi-people metric-icon"></i>
+                    <div class="metric-value">{{ total_guests|default:"0" }}</div>
+                    <p class="metric-label">Total Guests</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="metric-card warning">
+                    <i class="bi bi-percent metric-icon"></i>
+                    <div class="metric-value">{{ occupancy_rate|default:"0" }}%</div>
+                    <p class="metric-label">Occupancy Rate</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Bookings -->
+        <div class="row">
+            <div class="col-12">
+                <div class="recent-bookings-card">
+                    <h5 class="recent-bookings-header">
+                        <i class="bi bi-calendar-event me-2"></i>
+                        Recent Bookings
+                    </h5>
+                    <div class="p-4">
+                        {% if recent_bookings %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Guest</th>
+                                            <th>Room</th>
+                                            <th>Check-in</th>
+                                            <th>Check-out</th>
+                                            <th>Status</th>
+                                            <th>Total Amount</th>
+                                            <th>Payment Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for booking in recent_bookings %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; font-size: 0.8rem;">
+                                                        {{ booking.guest.name|first }}
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-semibold">{{ booking.guest.name }}</div>
+                                                        <small class="text-muted">{{ booking.guest.email }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <span class="fw-semibold text-primary">{{ booking.room.number }}</span>
+                                                    <br>
+                                                    <small class="text-muted">{{ booking.room.room_type }} - ₱{{ booking.room.price|floatformat:2 }}/night</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <span class="fw-semibold">{{ booking.check_in|date:"M d, Y" }}</span>
+                                                    <br>
+                                                    <small class="text-muted">{{ booking.check_in|date:"l" }}</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <span class="fw-semibold">{{ booking.check_out|date:"M d, Y" }}</span>
+                                                    <br>
+                                                    <small class="text-muted">{{ booking.check_out|date:"l" }}</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if booking.status == 'confirmed' %}
+                                                    <span class="badge bg-success">Confirmed</span>
+                                                {% elif booking.status == 'pending' %}
+                                                    <span class="badge bg-warning">Pending</span>
+                                                {% elif booking.status == 'cancelled' %}
+                                                    <span class="badge bg-danger">Cancelled</span>
+                                                {% elif booking.status == 'checked_in' %}
+                                                    <span class="badge bg-info">Checked In</span>
+                                                {% elif booking.status == 'checked_out' %}
+                                                    <span class="badge bg-secondary">Checked Out</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark">{{ booking.status|capfirst }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="fw-semibold text-success">₱{{ booking.total_price|floatformat:2 }}</span>
+                                            </td>
+                                            <td>
+                                                {% if booking.payment_status == 'paid' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle me-1"></i>Paid
+                                                    </span>
+                                                {% elif booking.payment_status == 'partial' %}
+                                                    <span class="badge bg-warning">
+                                                        <i class="bi bi-clock me-1"></i>Partial
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="bi bi-exclamation-circle me-1"></i>Unpaid
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'booking_detail' booking.pk %}" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'booking_edit' booking.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit Booking">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                    {% if booking.payment_status != 'paid' %}
+                                                    <a href="{% url 'payment_create' booking.pk %}" class="btn btn-sm btn-outline-success" title="Add Payment">
+                                                        <i class="bi bi-credit-card"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="text-center mt-3">
+                                <a href="{% url 'booking_list' %}" class="btn btn-primary">
+                                    <i class="bi bi-list me-2"></i>
+                                    View All Bookings
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
+                                <h5 class="text-muted">No recent bookings</h5>
+                                <p class="text-muted">When you have bookings, they'll appear here</p>
+                                <a href="{% url 'booking_create' %}" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle me-2"></i>
+                                    Create First Booking
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -495,55 +864,81 @@
 </div>
 
 <script>
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('show');
-}
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', function(event) {
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.querySelector('.mobile-toggle');
-    
-    if (window.innerWidth <= 768 && 
-        !sidebar.contains(event.target) && 
-        !toggleBtn.contains(event.target)) {
-        sidebar.classList.remove('show');
-    }
-});
-
-// Real-time date and time display
+// Real-time Date and Time Updates
 function updateDateTime() {
     const now = new Date();
-    
-    // Format date (e.g., "Wednesday, January 1, 2026")
     const dateOptions = { 
         weekday: 'long', 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
     };
-    const formattedDate = now.toLocaleDateString('en-US', dateOptions);
-    
-    // Format time (e.g., "2:30:45 PM")
     const timeOptions = { 
-        hour: 'numeric', 
+        hour: '2-digit', 
         minute: '2-digit', 
-        second: '2-digit', 
-        hour12: true 
+        second: '2-digit',
+        hour12: true
     };
-    const formattedTime = now.toLocaleTimeString('en-US', timeOptions);
     
-    // Update DOM elements
-    document.getElementById('currentDate').textContent = formattedDate;
-    document.getElementById('currentTime').textContent = formattedTime;
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
 }
 
-// Update immediately when page loads
-updateDateTime();
+// Mobile Sidebar Toggle
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('show');
+}
 
-// Update every second
+// Initialize and update every second
+updateDateTime();
 setInterval(updateDateTime, 1000);
+
+// Auto-hide sidebar on mobile when clicking outside
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.querySelector('.mobile-toggle');
+    
+    if (window.innerWidth <= 768) {
+        if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+            sidebar.classList.remove('show');
+        }
+    }
+});
+
+// Smooth scrolling for sidebar links
+document.querySelectorAll('.quick-actions a').forEach(link => {
+    link.addEventListener('click', function() {
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('show');
+        }
+    });
+});
+
+// Add loading states to cards
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.metric-card');
+    cards.forEach((card, index) => {
+        card.style.animation = `slideInUp 0.6s ease ${index * 0.1}s both`;
+    });
+});
+
+// Add slide-in animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+`;
+document.head.appendChild(style);
 </script>
+
 {% endblock %}
 
