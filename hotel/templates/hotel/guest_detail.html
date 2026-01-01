@@ -177,7 +177,7 @@
             <div class="stat-card average">
                 <i class="bi bi-calculator stat-icon"></i>
                 <div class="stat-value text-warning">
-                    ₱{% if total_bookings > 0 %}{{ total_spent|floatformat:2|div:total_bookings }}{% else %}0.00{% endif %}
+                    ₱{{ average_per_booking|floatformat:2 }}
                 </div>
                 <p class="stat-label">Average per Booking</p>
             </div>

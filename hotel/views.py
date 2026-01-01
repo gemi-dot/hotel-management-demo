@@ -980,11 +980,15 @@ def guest_detail(request, pk):
         booking_total = (booking.total_price or 0) + meal_total
         total_spent += booking_total
     
+    # Calculate average spending per booking
+    average_per_booking = total_spent / total_bookings if total_bookings > 0 else 0
+    
     context = {
         'guest': guest,
         'guest_bookings': guest_bookings,
         'total_bookings': total_bookings,
         'total_spent': total_spent,
+        'average_per_booking': average_per_booking,  # Add this line
     }
     
     return render(request, 'hotel/guest_detail.html', context)
