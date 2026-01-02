@@ -86,17 +86,15 @@ def payment_create(request, booking_id):
 from datetime import date
 
 def dashboard(request):
-    # ✅ PERFORMANCE FIX: Use efficient aggregations instead of multiple queries
+    # ✅ PERFORMANCE FIX: Use simple count queries to avoid duplication from JOINs
     from django.db.models import Count, Sum, Q, Case, When, IntegerField, DecimalField
     
-    # Single query to get room statistics
-    room_stats = Room.objects.aggregate(
-        total_rooms=Count('id'),
-        occupied_rooms=Count('id', filter=Q(bookings__status="Checked In"))
-    )
+    # ✅ FIX: Use simple Room count to get accurate total
+    total_rooms = Room.objects.count()
     
-    total_rooms = room_stats['total_rooms']
-    occupied_rooms = room_stats['occupied_rooms'] 
+    # ✅ FIX: Count rooms that are currently occupied (not available)
+    occupied_rooms = Room.objects.filter(is_available=False).count()
+    
     vacant_rooms = total_rooms - occupied_rooms
     
     # ✅ FIX: Use simple count to avoid duplication from JOINs
@@ -488,62 +486,29 @@ def booking_create(request, pk=None):
     if request.method == 'POST':
         form = BookingForm(request.POST, instance=booking)
         if form.is_valid():
-            booking = form.save(commit=False)
-
-            # Apply fixed check-in/check-out times
-            check_in_date = form.cleaned_data['check_in']
-            check_out_date = form.cleaned_data['check_out']
-            booking.check_in = timezone.make_aware(datetime.combine(check_in_date, time(14, 0)))  # 2 PM
-            booking.check_out = timezone.make_aware(datetime.combine(check_out_date, time(12, 0))) # 12 PM
-
-            # Compute total price
-            booking.total_price = booking.compute_total_price()
-            booking.save()
-
-            messages.success(request, "Booking saved successfully!")
-            return redirect('booking_detail', pk=booking.pk)
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        form = BookingForm(instance=booking)
-
-    guests = Guest.objects.all()
-    rooms = Room.objects.filter(is_available=True)
-
-    return render(request, 'hotel/booking_form.html', {
-        'form': form,
-        'booking': booking,
-        'guests': guests,
-        'rooms': rooms,
-    })
-
-
-
-@login_required
-def booking_create(request):
-    if request.method == 'POST':
-        form = BookingForm(request.POST)
-        if form.is_valid():
             try:
                 booking = form.save(commit=False)
-                
-                # Apply fixed check-in/check-out times if needed
+
+                # Apply fixed check-in/check-out times for all bookings
                 check_in_date = form.cleaned_data['check_in']
                 check_out_date = form.cleaned_data['check_out']
                 
                 # Set specific times (2 PM check-in, 12 PM check-out)
-                from datetime import time
-                booking.check_in = timezone.make_aware(datetime.combine(check_in_date, time(14, 0)))
-                booking.check_out = timezone.make_aware(datetime.combine(check_out_date, time(12, 0)))
-                
+                booking.check_in = timezone.make_aware(datetime.combine(check_in_date, time(14, 0)))  # 2 PM
+                booking.check_out = timezone.make_aware(datetime.combine(check_out_date, time(12, 0))) # 12 PM
+
                 # Compute total price
                 booking.total_price = booking.compute_total_price()
                 booking.save()
 
-                messages.success(request, f"Booking #{booking.pk} created successfully!")
+                if pk:
+                    messages.success(request, f"Booking #{booking.pk} updated successfully!")
+                else:
+                    messages.success(request, f"Booking #{booking.pk} created successfully!")
+                
                 return redirect('booking_detail', pk=booking.pk)
             except Exception as e:
-                messages.error(request, f"Error creating booking: {str(e)}")
+                messages.error(request, f"Error saving booking: {str(e)}")
         else:
             # Form has validation errors
             if form.non_field_errors():
@@ -554,14 +519,21 @@ def booking_create(request):
                 for error in errors:
                     messages.error(request, f"{field.title()}: {error}")
     else:
-        form = BookingForm()
+        form = BookingForm(instance=booking)
 
     # Always load fresh data for dropdowns
     guests = Guest.objects.all().order_by('name')
-    rooms = Room.objects.filter(is_available=True).order_by('number')
+    if booking:
+        # If editing, include current room even if not available
+        rooms = Room.objects.filter(
+            models.Q(is_available=True) | models.Q(id=booking.room.id)
+        ).order_by('number')
+    else:
+        rooms = Room.objects.filter(is_available=True).order_by('number')
 
     return render(request, 'hotel/booking_form.html', {
         'form': form,
+        'booking': booking,
         'guests': guests,
         'rooms': rooms,
     })
