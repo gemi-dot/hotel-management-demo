@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.db.models import Sum
 from django.db import transaction
+from decimal import Decimal
 
 
 class Guest(models.Model):
@@ -110,29 +111,41 @@ class Booking(models.Model):
     # --- Price Calculation ---
     def compute_total_price(self):
         """Calculate total price based on room rate and number of days."""
-        num_days = (self.check_out - self.check_in).days
-        return self.room.price * num_days
+        if not self.check_in or not self.check_out or not self.room:
+            return Decimal('0.00')
+        
+        # Convert to dates if they are datetime objects
+        check_in_date = self.check_in.date() if hasattr(self.check_in, 'date') else self.check_in
+        check_out_date = self.check_out.date() if hasattr(self.check_out, 'date') else self.check_out
+        
+        num_days = (check_out_date - check_in_date).days
+        if num_days <= 0:
+            return Decimal('0.00')
+        
+        return Decimal(str(self.room.price)) * num_days
     
-
     @property
     def room_total(self):
-        """Always recompute from dates (room only)."""
+        """Always recompute from dates (room only) - ensures never null."""
         return self.compute_total_price()
 
     @property
     def meal_total(self):
         """Sum of all meals linked to this booking."""
-        return self.meal_transactions.aggregate(total=Sum("total_price"))["total"] or 0
+        total = self.meal_transactions.aggregate(total=Sum("total_price"))["total"]
+        return total if total is not None else Decimal('0.00')
 
     @property
     def grand_total(self):
-        """Room + Meals combined."""
-        return (self.total_price or 0) + self.meal_total
+        """Room + Meals combined - ensures never null."""
+        room_price = self.total_price if self.total_price is not None else self.compute_total_price()
+        return room_price + self.meal_total
     
     @property
     def total_paid(self):
         """Sum of all payments linked to booking."""
-        return self.payments.aggregate(total=Sum("amount"))["total"] or 0
+        total = self.payments.aggregate(total=Sum("amount"))["total"]
+        return total if total is not None else Decimal('0.00')
     
     def clean(self):
         """Ensure no overlapping bookings for the same room, respecting early checkouts."""
@@ -146,8 +159,8 @@ class Booking(models.Model):
             raise ValidationError(f"Room {self.room.number} is already booked for the selected dates.")
 
     def save(self, *args, **kwargs):
-        if not self.total_price:
-            self.total_price = self.compute_total_price()
+        # Always ensure total_price is calculated and never null
+        self.total_price = self.compute_total_price()
 
         # Mark room as unavailable when booking is created
         if self.status in ["Pending", "Checked In"]:
@@ -316,7 +329,11 @@ class Payment(models.Model):
                     pass  # New payment
             
             remaining_balance = self.booking.grand_total - current_paid
-            if self.amount > remaining_balance:
+            
+            # Allow payment up to remaining balance + small tolerance for rounding
+            # This prevents overpayment while allowing exact balance payments
+            tolerance = Decimal('0.01')  # 1 cent tolerance for rounding differences
+            if self.amount > (remaining_balance + tolerance):
                 raise ValueError(
                     f"Payment of ${self.amount} exceeds remaining balance of ${remaining_balance:.2f}"
                 )

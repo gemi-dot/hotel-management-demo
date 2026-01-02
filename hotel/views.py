@@ -70,8 +70,20 @@ def payment_create(request, booking_id):
         if form.is_valid():
             payment = form.save(commit=False)
             payment.booking = booking
-            payment.save()
-            return redirect("booking_detail", pk=booking.pk)
+            
+            try:
+                payment.save()
+                messages.success(request, f"Payment of ${payment.amount} added successfully!")
+                return redirect("booking_detail", pk=booking.pk)
+            except ValueError as e:
+                # Handle overpayment and other validation errors
+                messages.error(request, str(e))
+                # Add helpful context about the current balance
+                remaining_balance = booking.outstanding_balance
+                messages.info(request, f"Current outstanding balance: ${remaining_balance:.2f}")
+            except Exception as e:
+                # Handle any other unexpected errors
+                messages.error(request, f"Error processing payment: {str(e)}")
     else:
         form = PaymentForm()
 
@@ -445,12 +457,22 @@ def booking_detail(request, pk):
     # Calculate meal total using prefetched data
     meal_total = sum(meal.total_price or 0 for meal in booking.meal_transactions.all())
 
+    # ✅ Fix: Ensure room total is calculated correctly even if total_price is null/zero
+    room_total = booking.room_total  # Use the property which always calculates correctly
+    
     # Calculate the grand total (room price + meal total)
-    grand_total = booking.total_price + meal_total
+    grand_total = room_total + meal_total
 
     # Calculate outstanding balance using prefetched payment data
     total_paid = sum(payment.amount for payment in payments)
     outstanding_balance = grand_total - total_paid
+
+    # ✅ Debug info to help identify date issues
+    nights = (booking.check_out.date() - booking.check_in.date()).days
+    if nights <= 0:
+        messages.warning(request, 
+            f"⚠️ This booking has {nights} nights. Check-in: {booking.check_in.date()}, "
+            f"Check-out: {booking.check_out.date()}. This may cause calculation issues.")
 
     return render(request, "hotel/booking_detail.html", {
         "booking": booking,
@@ -458,6 +480,8 @@ def booking_detail(request, pk):
         "meal_total": meal_total,
         "grand_total": grand_total,
         "outstanding_balance": outstanding_balance,
+        "room_total": room_total,  # ✅ Add room_total explicitly to context
+        "nights": nights,  # ✅ Add nights for debugging in template
     })
     
 @login_required
@@ -785,21 +809,44 @@ def occupancy_report(request):
 
     for room in rooms:
         # --- Find bookings overlapping the date range ---
+        # ✅ FIX: Check for bookings that are currently active (not just date overlap)
         overlapping_bookings = room.bookings.filter(
-            check_in__lte=end_date,
-            check_out__gte=start_date
+            check_in__date__lte=end_date,
+            check_out__date__gte=start_date,
+            status__in=["Pending", "Checked In"]  # Only consider active bookings
         ).order_by("check_in")
 
-        # Determine status
+        # Determine status based on room availability and active bookings
         status = "Vacant"
         booking_info = None
 
-        for booking in overlapping_bookings:
-            # Ignore bookings that are already Checked Out
-            if booking.status not in ["Checked Out", "No Show"]:
+        # ✅ FIX: Check room availability flag first, then verify with bookings
+        if not room.is_available:
+            # Room is marked as unavailable, find the active booking
+            active_booking = overlapping_bookings.first()
+            if active_booking:
                 status = "Occupied"
-                booking_info = booking
-                break  # first active booking is enough
+                booking_info = active_booking
+            else:
+                # Room marked unavailable but no active booking found
+                # Check for any current booking regardless of status
+                current_booking = room.bookings.filter(
+                    check_in__date__lte=today,
+                    check_out__date__gt=today
+                ).exclude(status="Checked Out").first()
+                
+                if current_booking:
+                    status = "Occupied"
+                    booking_info = current_booking
+                else:
+                    # Room should be available but marked as unavailable - data inconsistency
+                    status = "Maintenance"  # Could be under maintenance
+        else:
+            # Room is marked as available, double-check with bookings
+            if overlapping_bookings.exists():
+                # Data inconsistency: room marked available but has active bookings
+                status = "Occupied"
+                booking_info = overlapping_bookings.first()
 
         room_occupancy.append({
             "room": room,
@@ -814,8 +861,6 @@ def occupancy_report(request):
     }
 
     return render(request, "hotel/occupancy_report.html", context)
-
-
 
 
 @login_required
