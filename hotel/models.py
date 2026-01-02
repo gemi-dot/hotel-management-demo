@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.db.models import Sum
+from django.db import transaction
 
 
 class Guest(models.Model):
@@ -35,6 +36,26 @@ class Room(models.Model):
 
     def __str__(self):
         return f"Room {self.number} ({self.room_type})"
+
+
+class BookingManager(models.Manager):
+    """Custom manager for Booking with utility methods."""
+    
+    def update_all_payment_statuses(self, queryset=None):
+        """Bulk update payment statuses for multiple bookings."""
+        if queryset is None:
+            queryset = self.all()
+        
+        updated_count = 0
+        with transaction.atomic():
+            for booking in queryset.select_related('room', 'guest'):
+                old_status = booking.payment_status
+                booking.update_payment_status(manual_override=True)
+                if old_status != booking.payment_status:
+                    booking.save(update_fields=['payment_status'])
+                    updated_count += 1
+        
+        return updated_count
 
 
 class Booking(models.Model):
@@ -81,6 +102,8 @@ class Booking(models.Model):
     is_checked_in = models.BooleanField(default=False)  # Actual check-in flag
     checked_out_at = models.DateTimeField(blank=True, null=True)  # Timestamp for check-out
 
+    objects = BookingManager()
+
     def __str__(self):
         return f"{self.guest.name} - Room {self.room.number}"
 
@@ -122,48 +145,108 @@ class Booking(models.Model):
         if overlapping_bookings.exists():
             raise ValidationError(f"Room {self.room.number} is already booked for the selected dates.")
 
-
-
-
     def save(self, *args, **kwargs):
-        
-
         if not self.total_price:
             self.total_price = self.compute_total_price()
 
         # Mark room as unavailable when booking is created
         if self.status in ["Pending", "Checked In"]:
-      
             self.room.is_available = False
             self.room.save(update_fields=["is_available"])
 
         super().save(*args, **kwargs)
 
-    
-
     def is_fully_paid(self):
         """Check if booking is fully paid."""
         return self.total_paid >= (self.total_price or 0)
 
-
     def update_payment_status(self, manual_override=False):
+        """Update payment status based on current totals and dates."""
         today = now().date()
-
-        if self.total_paid >= self.grand_total:
+        
+        # Get current totals with database-level consistency
+        grand_total = self.grand_total
+        total_paid = self.total_paid
+        
+        # Store old status for comparison
+        old_status = self.payment_status
+        
+        # Calculate payment status based on amounts and dates
+        if total_paid >= grand_total and grand_total > 0:
             self.payment_status = "paid"
         elif self.check_out.date() < today:
-            if self.total_paid > 0:
+            if total_paid > 0:
                 self.payment_status = "partial"
             else:
                 self.payment_status = "overdue"
-        elif self.total_paid > 0:
+        elif total_paid > 0:
             self.payment_status = "partial"
         else:
             self.payment_status = "pending"
 
-        if not manual_override:
+        # Only save if status actually changed and not in manual override mode
+        if not manual_override and old_status != self.payment_status:
             self.save(update_fields=["payment_status"])
+        
+        return old_status != self.payment_status  # Return whether status changed
 
+    def recalculate_all_totals(self):
+        """Recalculate and update all totals for this booking atomically."""
+        with transaction.atomic():
+            # Recalculate room total from dates
+            self.total_price = self.compute_total_price()
+            
+            # Update payment status based on new totals
+            self.update_payment_status(manual_override=True)
+            
+            # Save both fields at once
+            self.save(update_fields=["total_price", "payment_status"])
+    
+    def add_payment(self, amount, payment_method, transaction_id=None):
+        """Add a payment to this booking with automatic balance update."""
+        import uuid
+        
+        if not transaction_id:
+            transaction_id = str(uuid.uuid4())
+        
+        with transaction.atomic():
+            payment = Payment(
+                booking=self,
+                amount=amount,
+                payment_method=payment_method,
+                transaction_id=transaction_id
+            )
+            payment.save()  # This will automatically update payment status
+            return payment
+
+    @property
+    def outstanding_balance(self):
+        """Calculate the current outstanding balance."""
+        return max(self.grand_total - self.total_paid, 0)
+    
+    @property
+    def payment_percentage(self):
+        """Calculate what percentage has been paid."""
+        if self.grand_total > 0:
+            return min((self.total_paid / self.grand_total) * 100, 100)
+        return 100 if self.total_paid == 0 else 0
+
+    def can_add_charges(self):
+        """Check if additional charges can be added to this booking."""
+        # Don't allow charges to completed/checked out bookings unless still within grace period
+        if self.status == "Checked Out":
+            # Allow charges within 24 hours of checkout
+            if self.checked_out_at:
+                from datetime import timedelta
+                grace_period = self.checked_out_at + timedelta(hours=24)
+                return now() <= grace_period
+            return False
+        return self.status in ["Pending", "Checked In"]
+
+    def add_payment_note(self, note):
+        """Add a note about payment status changes for audit trail."""
+        # This could be expanded to create a PaymentNote model for tracking
+        pass
 
     def booking_checkout(request, booking_id):
         booking = get_object_or_404(Booking, id=booking_id)
@@ -217,17 +300,38 @@ class Payment(models.Model):
         return f"Payment {self.transaction_id} - {self.amount}"
 
     def save(self, *args, **kwargs):
-        """Validate payment amount before saving."""
+        """Validate payment amount and update booking payment status atomically."""
         if self.amount <= 0:
             raise ValueError("Payment amount must be greater than zero.")
         
-        if self.booking.total_paid + self.amount > self.booking.grand_total:
-            raise ValueError("Payment exceeds the total price for the booking.")
-        
-        super().save(*args, **kwargs)
+        # Use atomic transaction to ensure data consistency
+        with transaction.atomic():
+            # Check if payment exceeds remaining balance (before saving)
+            current_paid = self.booking.total_paid
+            if self.pk:  # If updating existing payment, subtract old amount
+                try:
+                    old_payment = Payment.objects.get(pk=self.pk)
+                    current_paid -= old_payment.amount
+                except Payment.DoesNotExist:
+                    pass  # New payment
+            
+            remaining_balance = self.booking.grand_total - current_paid
+            if self.amount > remaining_balance:
+                raise ValueError(
+                    f"Payment of ${self.amount} exceeds remaining balance of ${remaining_balance:.2f}"
+                )
+            
+            super().save(*args, **kwargs)
+            
+            # ✅ Always update booking payment status after payment is saved
+            self.booking.update_payment_status()
 
-    # ✅ always keep payment_status in sync after payment
-        self.booking.update_payment_status()
+    def delete(self, *args, **kwargs):
+        """Update booking payment status when payment is deleted atomically."""
+        with transaction.atomic():
+            booking = self.booking
+            super().delete(*args, **kwargs)
+            booking.update_payment_status()
 
 class MealTransaction(models.Model):
     CATEGORY_CHOICES = [
@@ -244,8 +348,29 @@ class MealTransaction(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     transaction_date = models.DateTimeField(auto_now_add=True)    
 
-
     def save(self, *args, **kwargs):
-        # Automatically calculate total price before saving
-        self.total_price = self.quantity * self.price_per_unit
-        super().save(*args, **kwargs)
+        """Calculate total price and update booking payment status atomically."""
+        # Validate that we can add charges to this booking
+        if not self.booking.can_add_charges():
+            raise ValidationError(
+                f"Cannot add charges to booking {self.booking.id} - booking is completed or past grace period"
+            )
+        
+        # Use atomic transaction to ensure consistency
+        with transaction.atomic():
+            # Automatically calculate total price before saving
+            self.total_price = self.quantity * self.price_per_unit
+            super().save(*args, **kwargs)
+            
+            # ✅ Update booking payment status when meal charges change
+            self.booking.update_payment_status()
+
+    def delete(self, *args, **kwargs):
+        """Update booking payment status when meal is deleted atomically."""
+        with transaction.atomic():
+            booking = self.booking
+            super().delete(*args, **kwargs)
+            booking.update_payment_status()
+
+    def __str__(self):
+        return f"{self.meal_name} - {self.quantity} x ${self.price_per_unit} = ${self.total_price}"
