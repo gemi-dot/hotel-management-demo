@@ -378,28 +378,22 @@
         <div class="rooms-stats">
             <div class="stat-card total">
                 <i class="bi bi-building stat-icon"></i>
-                <div class="stat-value text-primary">{{ rooms|length }}</div>
+                <div class="stat-value text-primary">{{ room_stats.total_rooms }}</div>
                 <p class="stat-label">Total Rooms</p>
             </div>
             <div class="stat-card available">
                 <i class="bi bi-house-check stat-icon"></i>
-                <div class="stat-value text-success">
-                    {% for room in rooms %}{% if room.is_available %}{{ forloop.counter0|add:1 }}{% endif %}{% empty %}0{% endfor %}
-                </div>
+                <div class="stat-value text-success">{{ room_stats.available_rooms }}</div>
                 <p class="stat-label">Available Rooms</p>
             </div>
             <div class="stat-card occupied">
                 <i class="bi bi-house-x stat-icon"></i>
-                <div class="stat-value text-danger">
-                    {% for room in rooms %}{% if not room.is_available %}{{ forloop.counter0|add:1 }}{% endif %}{% empty %}0{% endfor %}
-                </div>
+                <div class="stat-value text-danger">{{ room_stats.occupied_rooms }}</div>
                 <p class="stat-label">Occupied Rooms</p>
             </div>
             <div class="stat-card revenue">
                 <i class="bi bi-cash-stack stat-icon"></i>
-                <div class="stat-value text-warning">
-                    ₱{% for room in rooms %}{% if not room.is_available %}{{ room.price|add:0 }}{% endif %}{% empty %}0{% endfor %}
-                </div>
+                <div class="stat-value text-warning">₱{{ room_stats.active_revenue|floatformat:2 }}</div>
                 <p class="stat-label">Active Revenue/Night</p>
             </div>
         </div>

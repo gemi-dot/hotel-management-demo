@@ -3,6 +3,8 @@
 {% block content %}
 <div class="container mt-4">
     <h2>💰 Revenue Report</h2>
+    
+    <!-- Date Filter Form -->
     <form method="get" class="row g-3 mb-4">
         <div class="col-md-3">
             <label for="start_date" class="form-label">From</label>
@@ -15,41 +17,172 @@
         <div class="col-md-3">
             <button type="submit" class="btn btn-primary mt-4 w-100">Filter</button>
         </div>
+        <div class="col-md-3">
+            <a href="{% url 'revenue_report' %}" class="btn btn-outline-secondary mt-4 w-100">Clear Filters</a>
+        </div>
     </form>
 
     <a href="{% url 'dashboard' %}" class="btn btn-outline-dark mb-3">Back to Dashboard</a>
 
-    <div class="mb-4">
-        <h4>Total Revenue: ₱{{ total_revenue|floatformat:2 }}</h4>
-        <h4>Total Bookings: {{ total_bookings }}</h4>
-        <h4>Average Revenue per Booking: ₱{{ average_revenue|floatformat:2 }}</h4>
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Revenue</h5>
+                    <h3>₱{{ total_revenue|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Payments</h5>
+                    <h3>{{ total_payments }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Unique Bookings</h5>
+                    <h3>{{ total_bookings }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Avg per Payment</h5>
+                    <h3>₱{{ avg_revenue|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Transaction ID</th>
-                <th>Booking</th>
-                <th>Amount</th>
-                <th>Payment Method</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for payment in payments %}
-            <tr>
-                <td>{{ payment.transaction_id }}</td>
-                <td>{{ payment.booking.id }}</td>
-                <td>₱{{ payment.amount|floatformat:2 }}</td>
-                <td>{{ payment.payment_method }}</td>
-                <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center">No payments found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Payment Details Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Payment Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Booking ID</th>
+                            <th>Guest</th>
+                            <th>Room</th>
+                            <th>Amount</th>
+                            <th>Payment Method</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.transaction_id }}</td>
+                            <td>
+                                <a href="{% url 'booking_detail' payment.booking.id %}" class="btn btn-sm btn-outline-primary">
+                                    #{{ payment.booking.id }}
+                                </a>
+                            </td>
+                            <td>{{ payment.booking.guest.name }}</td>
+                            <td>{{ payment.booking.room.number }}</td>
+                            <td>₱{{ payment.amount|floatformat:2 }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ payment.payment_method }}</span>
+                            </td>
+                            <td>{{ payment.payment_date|date:"M d, Y - g:i A" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                <div class="py-4">
+                                    <i class="fas fa-receipt fa-2x mb-2"></i>
+                                    <p>No payments found for the selected date range.</p>
+                                    {% if start_date or end_date %}
+                                    <a href="{% url 'revenue_report' %}" class="btn btn-outline-primary">View All Payments</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if payments %}
+    <!-- Export Options -->
+    <div class="mt-4">
+        <h6>Export Options:</h6>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-success" onclick="exportTableToCSV('revenue-report.csv')">
+                <i class="fas fa-file-csv"></i> Export CSV
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Report
+            </button>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<script>
+// Function to export table to CSV
+function exportTableToCSV(filename) {
+    var csv = [];
+    var rows = document.querySelectorAll("table tr");
+    
+    for (var i = 0; i < rows.length; i++) {
+        var row = [], cols = rows[i].querySelectorAll("td, th");
+        
+        for (var j = 0; j < cols.length; j++) {
+            var cellText = cols[j].innerText.replace(/"/g, '""'); // Escape quotes
+            row.push('"' + cellText + '"');
+        }
+        
+        csv.push(row.join(","));
+    }
+    
+    // Download CSV file
+    downloadCSV(csv.join("\n"), filename);
+}
+
+function downloadCSV(csv, filename) {
+    var csvFile;
+    var downloadLink;
+    
+    // CSV file
+    csvFile = new Blob([csv], {type: "text/csv"});
+    
+    // Download link
+    downloadLink = document.createElement("a");
+    
+    // File name
+    downloadLink.download = filename;
+    
+    // Create a link to the file
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    
+    // Hide download link
+    downloadLink.style.display = "none";
+    
+    // Add the link to DOM
+    document.body.appendChild(downloadLink);
+    
+    // Click download link
+    downloadLink.click();
+}
+</script>
+
+<style>
+@media print {
+    .btn, .card-header { display: none; }
+    .container { max-width: 100%; }
+}
+</style>
 {% endblock %}

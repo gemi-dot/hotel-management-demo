@@ -99,22 +99,29 @@ def dashboard(request):
     occupied_rooms = room_stats['occupied_rooms'] 
     vacant_rooms = total_rooms - occupied_rooms
     
-    # Efficient revenue and booking calculations
-    booking_stats = Booking.objects.aggregate(
-        total_bookings=Count('id'),
-        total_revenue=Sum('payments__amount'),
-        outstanding_balance=Sum(
-            Case(
-                When(total_price__isnull=False, then='total_price'),
-                default=0,
-                output_field=DecimalField()
-            )
-        ) - Sum('payments__amount', filter=Q(payments__isnull=False))
-    )
+    # ✅ FIX: Use simple count to avoid duplication from JOINs
+    total_bookings = Booking.objects.count()
     
-    total_revenue = booking_stats['total_revenue'] or 0
-    total_bookings = booking_stats['total_bookings'] or 0
-    outstanding_balance = max(booking_stats['outstanding_balance'] or 0, 0)
+    # ✅ Calculate pending check-ins count
+    pending_checkins = Booking.objects.filter(status="Pending").count()
+    
+    # ✅ Calculate pending check-outs count (guests currently checked in)
+    pending_checkouts = Booking.objects.filter(status="Checked In").count()
+    
+    # Efficient revenue calculations
+    total_revenue = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Calculate outstanding balance more accurately
+    total_booking_value = Booking.objects.aggregate(
+        total=Sum('total_price')
+    )['total'] or 0
+    
+    total_meal_value = MealTransaction.objects.aggregate(
+        total=Sum('total_price')
+    )['total'] or 0
+    
+    total_grand_value = total_booking_value + total_meal_value
+    outstanding_balance = max(total_grand_value - total_revenue, 0)
     
     # Occupancy rate
     occupancy_rate = 0
@@ -157,6 +164,8 @@ def dashboard(request):
         "recent_bookings": recent_bookings,
         "guest_form": guest_form,
         "total_guests": total_guests,
+        "pending_checkins": pending_checkins,  # ✅ Add pending check-ins to context
+        "pending_checkouts": pending_checkouts,  # ✅ Add pending check-outs to context
     })
 # =======================
 # 🔹 ROOMS
@@ -214,8 +223,31 @@ def reserve_room(request, room_id):
 
 @login_required
 def room_list(request):
+    # ✅ PERFORMANCE FIX: Get all rooms and calculate statistics efficiently
     rooms = Room.objects.all()
-    return render(request, 'hotel/room_list.html', {'rooms': rooms})
+    
+    # Calculate accurate room statistics
+    total_rooms = rooms.count()
+    available_rooms = rooms.filter(is_available=True).count()
+    occupied_rooms = rooms.filter(is_available=False).count()
+    
+    # Calculate active revenue from occupied rooms
+    active_revenue = rooms.filter(is_available=False).aggregate(
+        total_revenue=Sum('price')
+    )['total_revenue'] or 0
+    
+    # Add statistics to context
+    room_stats = {
+        'total_rooms': total_rooms,
+        'available_rooms': available_rooms,
+        'occupied_rooms': occupied_rooms,
+        'active_revenue': active_revenue,
+    }
+    
+    return render(request, 'hotel/room_list.html', {
+        'rooms': rooms,
+        'room_stats': room_stats,
+    })
 
 @login_required
 def room_create(request):
@@ -820,7 +852,7 @@ def revenue_report(request):
     end_date_str = request.GET.get('end_date')
 
     start_date = end_date = None
-    payments = Payment.objects.filter(booking__payment_status='paid').select_related('booking')
+    payments = Payment.objects.select_related('booking', 'booking__guest', 'booking__room').all()
 
     # Filter by date range on payment date
     try:
@@ -833,14 +865,23 @@ def revenue_report(request):
     except ValueError:
         pass  # Invalid date strings are ignored
 
+    # Order payments by date (most recent first)
+    payments = payments.order_by('-payment_date')
+
+    # Calculate summary statistics
     total_revenue = payments.aggregate(total=Sum('amount'))['total'] or 0
-    total_bookings = payments.count()
-    avg_revenue = total_revenue / total_bookings if total_bookings > 0 else 0
+    total_payments = payments.count()
+    avg_revenue = total_revenue / total_payments if total_payments > 0 else 0
+    
+    # Get unique bookings count from the filtered payments
+    unique_bookings = payments.values('booking').distinct().count()
 
     return render(request, 'hotel/revenue_report.html', {
+        'payments': payments,  # ✅ Add missing payments data
         'start_date': start_date_str,
         'end_date': end_date_str,
-        'total_bookings': total_bookings,
+        'total_bookings': unique_bookings,
+        'total_payments': total_payments,
         'total_revenue': total_revenue,
         'avg_revenue': avg_revenue,
     })

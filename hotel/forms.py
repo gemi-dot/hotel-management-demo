@@ -274,6 +274,10 @@ class BookingForm(forms.ModelForm):
         if not check_in:
             raise ValidationError("Check-in date is required.")
         
+        # Convert to date object if it's a datetime
+        if isinstance(check_in, datetime):
+            check_in = check_in.date()
+        
         today = date.today()
         
         # Check if check-in is in the past (allow same day)
@@ -292,6 +296,10 @@ class BookingForm(forms.ModelForm):
         check_out = self.cleaned_data.get('check_out')
         if not check_out:
             raise ValidationError("Check-out date is required.")
+        
+        # Convert to date object if it's a datetime
+        if isinstance(check_out, datetime):
+            check_out = check_out.date()
         
         today = date.today()
         
@@ -325,10 +333,25 @@ class BookingForm(forms.ModelForm):
         
         # Check room availability
         if room and check_in and check_out:
+            # Convert date objects to datetime objects for proper database comparison
+            from django.utils import timezone
+            
+            # Convert check_in date to datetime at start of day
+            if isinstance(check_in, date) and not isinstance(check_in, datetime):
+                check_in_dt = timezone.make_aware(datetime.combine(check_in, datetime.min.time()))
+            else:
+                check_in_dt = check_in
+            
+            # Convert check_out date to datetime at start of day
+            if isinstance(check_out, date) and not isinstance(check_out, datetime):
+                check_out_dt = timezone.make_aware(datetime.combine(check_out, datetime.min.time()))
+            else:
+                check_out_dt = check_out
+            
             overlapping_bookings = Booking.objects.filter(
                 room=room,
-                check_in__lt=check_out,
-                check_out__gt=check_in,
+                check_in__lt=check_out_dt,
+                check_out__gt=check_in_dt,
                 status__in=['Pending', 'Checked In']  # Only active bookings
             )
             
@@ -338,10 +361,13 @@ class BookingForm(forms.ModelForm):
             
             if overlapping_bookings.exists():
                 conflicting_booking = overlapping_bookings.first()
+                # Convert datetime back to date for display
+                conflict_start = conflicting_booking.check_in.date() if hasattr(conflicting_booking.check_in, 'date') else conflicting_booking.check_in
+                conflict_end = conflicting_booking.check_out.date() if hasattr(conflicting_booking.check_out, 'date') else conflicting_booking.check_out
                 raise ValidationError(
                     f"Room {room.number} is not available for the selected dates. "
-                    f"Conflict with booking from {conflicting_booking.check_in.date()} "
-                    f"to {conflicting_booking.check_out.date()}."
+                    f"Conflict with booking from {conflict_start} "
+                    f"to {conflict_end}."
                 )
         
         # Check guest capacity
